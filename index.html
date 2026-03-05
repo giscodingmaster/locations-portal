@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Locations Portal · KML · KMZ · Excel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --panel: #13161d;
+    --panel2: #0f1219;
+    --border: #1f2430;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --accent3: #ffc800;
+    --accent4: #a78bfa;
+    --accent5: #34d399;
+    --text: #e2e8f0;
+    --muted: #4a5568;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.65rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .topbar h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+    text-shadow: 0 0 20px rgba(0,229,255,0.3);
+  }
+
+  .sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
+  .drop-zone {
+    position: relative;
+    border: 1.5px dashed var(--border);
+    border-radius: 7px;
+    padding: 0.38rem 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.65rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  #status {
+    font-size: 0.63rem; color: var(--accent); flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #status.error { color: var(--accent2); }
+  #status.ok { color: var(--accent5); }
+
+  .btn {
+    background: rgba(0,229,255,0.07);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent);
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(0,229,255,0.15); }
+  .btn:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 0.5rem 1.2rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent5); border-bottom-color: var(--accent5); }
+  .tab.active.tab-map { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab.active.tab-convert { color: var(--accent5); border-bottom-color: var(--accent5); }
+
+  /* ── MAIN ── */
+  .view { display: none; flex: 1; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ── MAP VIEW ── */
+  #map { flex: 1; min-width: 0; }
+
+  .sidebar {
+    width: 330px;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .pin-panel {
+    padding: 0.75rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel2);
+    flex-shrink: 0;
+  }
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.55rem;
+  }
+  .panel-title.purple { color: var(--accent4); }
+  .panel-title.green  { color: var(--accent5); }
+
+  .pin-inputs { display: flex; gap: 0.45rem; margin-bottom: 0.45rem; }
+  .pin-inputs input, .pin-row2 input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.35rem 0.55rem;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+  }
+  .pin-inputs input::placeholder, .pin-row2 input::placeholder { color: var(--muted); }
+  .pin-inputs input:focus, .pin-row2 input:focus { border-color: var(--accent4); }
+
+  .pin-row2 { display: flex; gap: 0.45rem; align-items: center; }
+
+  .btn-purple {
+    background: rgba(167,139,250,0.1);
+    border: 1px solid rgba(167,139,250,0.28);
+    color: var(--accent4);
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-purple:hover { background: rgba(167,139,250,0.2); }
+
+  .btn-pin-dl {
+    flex: 1;
+    background: rgba(167,139,250,0.07);
+    border: 1px solid rgba(167,139,250,0.22);
+    color: var(--accent4);
+    padding: 0.32rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn-pin-dl:hover { background: rgba(167,139,250,0.16); }
+  .btn-pin-dl:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+
+  .hint { font-size: 0.56rem; color: var(--muted); margin-top: 0.4rem; }
+
+  .sidebar-head {
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--panel); flex-shrink: 0;
+  }
+  .sidebar-label {
+    font-family: 'Syne', sans-serif; font-size: 0.6rem;
+    text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+  }
+  .badge {
+    font-size: 0.55rem; padding: 1px 7px; border-radius: 20px;
+  }
+  .badge-cyan  { background: rgba(0,229,255,0.1);   color: var(--accent);  border: 1px solid rgba(0,229,255,0.2); }
+  .badge-red   { background: rgba(255,77,109,0.1);  color: var(--accent2); border: 1px solid rgba(255,77,109,0.2); cursor:pointer; }
+  .badge-red:hover { background: rgba(255,77,109,0.2); }
+
+  .table-scroll { overflow-y: auto; flex: 1; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.64rem; }
+  th {
+    position: sticky; top: 0;
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+    font-family: 'Syne', sans-serif; font-size: 0.54rem;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    background: #161922; white-space: nowrap; z-index: 1;
+  }
+  td { padding: 0.4rem 0.6rem; border-top: 1px solid var(--border); white-space: nowrap; }
+  tr.fr { cursor: pointer; }
+  tr.fr:hover td { background: rgba(0,229,255,0.05); }
+  tr.fr.active td { background: rgba(0,229,255,0.1) !important; }
+  tr.fr.mr:hover td { background: rgba(167,139,250,0.07); }
+  tr.fr.mr.active td { background: rgba(167,139,250,0.12) !important; }
+
+  .coord  { color: var(--accent);  font-size: 0.6rem; }
+  .coordm { color: var(--accent4); font-size: 0.6rem; }
+
+  .pill { display:inline-block; padding:1px 5px; border-radius:20px; font-size:0.54rem; text-transform:uppercase; letter-spacing:0.5px; }
+  .p-Point    { background:rgba(0,229,255,0.1);   color:var(--accent);  border:1px solid rgba(0,229,255,0.25); }
+  .p-Polygon  { background:rgba(255,77,109,0.1);  color:var(--accent2); border:1px solid rgba(255,77,109,0.25); }
+  .p-Line     { background:rgba(255,200,0,0.1);   color:var(--accent3); border:1px solid rgba(255,200,0,0.25); }
+  .p-Pin      { background:rgba(167,139,250,0.12);color:var(--accent4); border:1px solid rgba(167,139,250,0.3); }
+
+  .del-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.72rem; padding:0 3px; transition:color 0.15s; }
+  .del-btn:hover { color:var(--accent2); }
+
+  .empty-state {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    flex:1; padding:2rem 1rem; color:var(--muted); font-size:0.65rem; text-align:center; gap:0.55rem;
+  }
+  .empty-icon { font-size:1.9rem; opacity:0.3; }
+
+  /* ── CONVERT VIEW ── */
+  .convert-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    background: var(--bg);
+  }
+
+  .cv-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent5);
+    margin-bottom: 0.3rem;
+  }
+  .cv-header p { font-size: 0.68rem; color: var(--muted); }
+
+  .cv-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+  }
+  .cv-card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent5);
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  /* Upload box */
+  .xl-drop {
+    position: relative;
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 1rem;
+  }
+  .xl-drop:hover, .xl-drop.drag-over {
+    border-color: var(--accent5);
+    background: rgba(52,211,153,0.04);
+  }
+  .xl-drop input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .xl-drop-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .xl-drop h3 { font-family:'Syne',sans-serif; font-size:0.9rem; color:var(--text); margin-bottom:0.3rem; }
+  .xl-drop p { font-size:0.65rem; color:var(--muted); }
+
+  /* Column mapper */
+  .col-mapper {
+    display: none;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .col-mapper.show { display: flex; }
+
+  .mapper-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .mapper-field label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.35rem;
+  }
+  .mapper-field select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.38rem 0.6rem;
+    outline: none;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .mapper-field select:focus { border-color: var(--accent5); }
+  .mapper-field select.required-missing { border-color: var(--accent2); }
+
+  .preview-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .preview-table { width:100%; border-collapse:collapse; font-size:0.63rem; }
+  .preview-table th {
+    padding:0.4rem 0.7rem; background:#161922; color:var(--muted);
+    font-family:'Syne',sans-serif; font-size:0.55rem; text-transform:uppercase;
+    letter-spacing:1px; white-space:nowrap; position:sticky; top:0; z-index:1;
+  }
+  .preview-table td { padding:0.35rem 0.7rem; border-top:1px solid var(--border); white-space:nowrap; color:var(--text); }
+  .preview-table tr:hover td { background:rgba(52,211,153,0.04); }
+  .preview-table .hl { color: var(--accent5); }
+
+  .convert-actions {
+    display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+  }
+
+  .btn-green {
+    background: rgba(52,211,153,0.1);
+    border: 1px solid rgba(52,211,153,0.3);
+    color: var(--accent5);
+    padding: 0.45rem 1.1rem;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn-green:hover { background: rgba(52,211,153,0.18); }
+  .btn-green:disabled { opacity: 0.25; cursor:default; pointer-events:none; }
+
+  .btn-green2 {
+    background: rgba(52,211,153,0.06);
+    border: 1px solid rgba(52,211,153,0.2);
+    color: var(--accent5);
+    padding: 0.45rem 1.1rem;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn-green2:hover { background: rgba(52,211,153,0.14); }
+  .btn-green2:disabled { opacity: 0.25; cursor:default; pointer-events:none; }
+
+  #cv-status {
+    font-size: 0.65rem;
+    min-height: 1.2rem;
+    margin-top: 0.25rem;
+  }
+  #cv-status.ok    { color: var(--accent5); }
+  #cv-status.error { color: var(--accent2); }
+  #cv-status.info  { color: var(--accent); }
+
+  .send-map-btn {
+    background: rgba(0,229,255,0.07);
+    border: 1px solid rgba(0,229,255,0.2);
+    color: var(--accent);
+    padding: 0.45rem 1.1rem;
+    border-radius: 7px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    transition: all 0.18s;
+  }
+  .send-map-btn:hover { background: rgba(0,229,255,0.14); }
+  .send-map-btn:disabled { opacity:0.25; cursor:default; pointer-events:none; }
+
+  /* Leaflet */
+  .leaflet-popup-content-wrapper {
+    background:#13161d !important; border:1px solid #1f2430 !important;
+    border-radius:8px !important; color:#e2e8f0 !important;
+    font-family:'Space Mono',monospace !important; font-size:0.7rem !important;
+    box-shadow:0 8px 32px rgba(0,0,0,0.7) !important;
+  }
+  .leaflet-popup-tip { background:#13161d !important; }
+  .leaflet-popup-close-button { color:#4a5568 !important; top:5px !important; right:7px !important; }
+  .pu-title  { font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:700; color:#00e5ff; margin-bottom:4px; }
+  .pu-titlep { color:#a78bfa; }
+  .pu-row    { color:#4a5568; font-size:0.62rem; margin-top:2px; }
+  .pu-row span { color:#e2e8f0; }
+
+  @keyframes pulse-ring {
+    0%   { transform:scale(0.8); opacity:1; }
+    100% { transform:scale(2.2); opacity:0; }
+  }
+
+  @media (max-width: 640px) {
+    body { height:auto; overflow:auto; }
+    .view.active { flex-direction:column; }
+    #map { height:55vw; min-height:240px; }
+    .sidebar { width:100%; border-left:none; border-top:1px solid var(--border); max-height:300px; }
+    .convert-view { padding:1rem; }
+  }
+
+  /* ── GIST STORAGE STYLES ── */
+  .gist-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .gist-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .gist-input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    padding: 0.3rem 0.6rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 260px;
+  }
+  .gist-input:focus { border-color: var(--accent4); }
+  .gist-input::placeholder { color: var(--muted); }
+  .btn-gist-save {
+    background: rgba(167,139,250,0.1);
+    border: 1px solid rgba(167,139,250,0.3);
+    color: var(--accent4);
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .btn-gist-save:hover { background: rgba(167,139,250,0.2); }
+  .btn-gist-save:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+  .gist-status {
+    font-size: 0.6rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gist-status.ok   { color: var(--accent5); }
+  .gist-status.err  { color: var(--accent2); }
+  .gist-status.info { color: var(--accent4); }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2rem 2.2rem;
+    max-width: 380px;
+    width: 90%;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+    text-align: center;
+  }
+  .modal-icon { font-size: 2.2rem; margin-bottom: 0.7rem; }
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--accent4);
+    margin-bottom: 0.5rem;
+  }
+  .modal-body {
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 1.4rem;
+  }
+  .modal-body strong { color: var(--text); }
+  .modal-actions { display: flex; gap: 0.75rem; justify-content: center; }
+  .btn-modal-yes {
+    background: rgba(167,139,250,0.15);
+    border: 1px solid rgba(167,139,250,0.4);
+    color: var(--accent4);
+    padding: 0.45rem 1.4rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    transition: all 0.18s;
+  }
+  .btn-modal-yes:hover { background: rgba(167,139,250,0.28); }
+  .btn-modal-no {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.45rem 1.4rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    transition: all 0.18s;
+  }
+  .btn-modal-no:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- RELOAD MODAL -->
+<div class="modal-overlay" id="reloadModal">
+  <div class="modal-box">
+    <div class="modal-icon">📍</div>
+    <div class="modal-title">Saved Pins Found</div>
+    <div class="modal-body">
+      Found <strong id="modalPinCount">0 saved pins</strong> in your GitHub Gist.<br>
+      Would you like to reload them onto the map?
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-yes" onclick="confirmReload()">✓ Yes, reload</button>
+      <button class="btn-modal-no"  onclick="dismissReload()">✕ Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <h1>📍 Locations Portal</h1>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".kml,.kmz">
+    <span>📂</span><span>KML / KMZ</span>
+  </div>
+
+  <span id="status">Ready</span>
+
+  <div class="sep"></div>
+  <button class="btn" id="fitBtn"  onclick="fitMap()"    disabled>⊞ Fit</button>
+  <button class="btn" id="csvBtn"  onclick="exportCSV()" disabled>⬇ CSV</button>
+  <button class="btn" id="jsonBtn" onclick="exportJSON()" disabled>⬇ JSON</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab tab-map active" id="tabMap" onclick="switchTab('map')">🗺 Map Viewer</div>
+  <div class="tab tab-convert" id="tabConvert" onclick="switchTab('convert')">⚡ Excel → KML/KMZ</div>
+</div>
+
+<!-- GIST STORAGE BAR -->
+<div class="gist-bar">
+  <span class="gist-label">☁ GitHub Gist</span>
+  <input class="gist-input" id="gistToken" type="password" placeholder="GitHub Personal Access Token (gist scope)" autocomplete="off">
+  <input class="gist-input" id="gistId" type="text" placeholder="Gist ID (leave blank to create new)" style="width:200px">
+  <button class="btn-gist-save" id="btnGistSave" onclick="saveToGist()">💾 Save Pins</button>
+  <span class="gist-status" id="gistStatus">Enter your token to enable cloud saving</span>
+</div>
+
+<!-- MAP VIEW -->
+<div class="view active" id="viewMap">
+  <div id="map"></div>
+
+  <div class="sidebar">
+    <!-- PIN -->
+    <div class="pin-panel">
+      <div class="panel-title purple">📌 Drop a pin</div>
+      <div class="pin-inputs">
+        <input type="number" id="pinLat" placeholder="Latitude"  step="any" min="-90"  max="90">
+        <input type="number" id="pinLng" placeholder="Longitude" step="any" min="-180" max="180">
+      </div>
+      <div class="pin-row2">
+        <input type="text" id="pinName" placeholder="Label (optional)">
+        <button class="btn-purple" onclick="addManualPin()">＋ Pin</button>
+      </div>
+      <div class="pin-row3" style="display:flex;gap:0.45rem;margin-top:0.45rem">
+        <button class="btn-pin-dl" id="btnPinKmz" onclick="exportPinsKMZ()" disabled>⬇ KMZ</button>
+        <button class="btn-pin-dl" id="btnPinKml" onclick="exportPinsKML()" disabled>⬇ KML</button>
+      </div>
+      <div class="hint">Enter coords or click the map to fill fields · press Enter to pin</div>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="sidebar-head">
+      <span class="sidebar-label">Features</span>
+      <span class="badge badge-cyan" id="totalBadge">0</span>
+      <span class="badge badge-red" id="clearPinsBtn" onclick="clearManualPins()" style="display:none;margin-left:auto">✕ pins</span>
+    </div>
+    <div class="table-scroll">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">🗺️</div>
+        <div>Load KML/KMZ<br>or drop a pin above</div>
+      </div>
+      <table id="tbl" style="display:none">
+        <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Lat</th><th>Lng</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CONVERT VIEW -->
+<div class="view" id="viewConvert">
+  <div class="convert-view">
+
+    <div class="cv-header">
+      <h2>⚡ Excel → KML / KMZ</h2>
+      <p>Load any .xlsx / .xls / .csv · map your lat &amp; lng columns · download KML or KMZ instantly</p>
+    </div>
+
+    <!-- STEP 1: Upload -->
+    <div class="cv-card">
+      <div class="cv-card-title">① Upload spreadsheet</div>
+      <div class="xl-drop" id="xlDrop">
+        <input type="file" id="xlInput" accept=".xlsx,.xls,.csv">
+        <div class="xl-drop-icon">📊</div>
+        <h3>Drop Excel / CSV here</h3>
+        <p>.xlsx · .xls · .csv supported · processed 100% in your browser</p>
+      </div>
+      <div id="cv-status"></div>
+    </div>
+
+    <!-- STEP 2: Map columns -->
+    <div class="cv-card" id="mapperCard" style="display:none">
+      <div class="cv-card-title">② Map your columns</div>
+      <div class="col-mapper show" id="colMapper">
+        <div class="mapper-grid">
+          <div class="mapper-field">
+            <label>Latitude column <span style="color:var(--accent2)">*</span></label>
+            <select id="colLat"></select>
+          </div>
+          <div class="mapper-field">
+            <label>Longitude column <span style="color:var(--accent2)">*</span></label>
+            <select id="colLng"></select>
+          </div>
+          <div class="mapper-field">
+            <label>Name / Label column</label>
+            <select id="colName"></select>
+          </div>
+          <div class="mapper-field">
+            <label>Description column</label>
+            <select id="colDesc"></select>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:0.58rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:0.5rem">
+            Preview (first 5 rows)
+          </div>
+          <div class="preview-table-wrap">
+            <table class="preview-table" id="previewTable"></table>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="convert-actions">
+          <button class="btn-green"  id="btnKml"  onclick="doConvert('kml')"  disabled>⬇ Download KML</button>
+          <button class="btn-green2" id="btnKmz"  onclick="doConvert('kmz')"  disabled>⬇ Download KMZ</button>
+          <button class="send-map-btn" id="btnSendMap" onclick="sendToMap()" disabled>→ View on Map</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+//  MAP INIT
+// ═══════════════════════════════════════════════════
+const map = L.map('map').setView([20, 0], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '©OpenStreetMap ©CartoDB', maxZoom: 19
+}).addTo(map);
+
+let kmlRows = [], manualRows = [], kmlLayers = [], manualLayers = [];
+let manualCounter = 0;
+
+// Click map → fill pin fields
+map.on('click', e => {
+  document.getElementById('pinLat').value = e.latlng.lat.toFixed(6);
+  document.getElementById('pinLng').value = e.latlng.lng.toFixed(6);
+  document.getElementById('pinLat').focus();
+});
+
+['pinLat','pinLng','pinName'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') addManualPin(); })
+);
+
+// ═══════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  if (tab === 'map') {
+    document.getElementById('tabMap').classList.add('active');
+    document.getElementById('viewMap').classList.add('active');
+    setTimeout(() => map.invalidateSize(), 50);
+  } else {
+    document.getElementById('tabConvert').classList.add('active');
+    document.getElementById('viewConvert').classList.add('active');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  KML / KMZ FILE LOADING
+// ═══════════════════════════════════════════════════
+const dz = document.getElementById('dropZone');
+const fi = document.getElementById('fileInput');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processKmlFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if (e.target.files[0]) processKmlFile(e.target.files[0]); });
+
+async function processKmlFile(file) {
+  setStatus('Loading ' + file.name + '…', '');
+  clearKML();
+  try {
+    let kmlText;
+    if (file.name.toLowerCase().endsWith('.kmz')) {
+      const zip = await JSZip.loadAsync(file);
+      const kf = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+      if (!kf) throw new Error('No KML inside KMZ.');
+      kmlText = await kf.async('string');
+    } else {
+      kmlText = await file.text();
+    }
+    parseKML(kmlText);
+  } catch(e) { setStatus('Error: ' + e.message, 'error'); }
+}
+
+function parseKML(kmlText) {
+  const doc = new DOMParser().parseFromString(kmlText, 'text/xml');
+  const pms = doc.querySelectorAll('Placemark');
+  if (!pms.length) { setStatus('No Placemarks found.', 'error'); return; }
+  const boundsArr = [];
+
+  pms.forEach((pm, i) => {
+    const name = pm.querySelector('name')?.textContent?.trim() || 'Feature ' + (i+1);
+
+    const ptEl = pm.querySelector('Point > coordinates');
+    if (ptEl) {
+      const [lng, lat] = ptEl.textContent.trim().split(',').map(Number);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const idx = kmlRows.length;
+        kmlRows.push({ name, type: 'Point', lat, lng });
+        boundsArr.push([lat, lng]);
+        const m = L.circleMarker([lat, lng], { radius:7, color:'#00e5ff', weight:2, fillColor:'#00e5ff', fillOpacity:0.85 })
+          .bindPopup(mkPopup(name,'Point',lat,lng)).addTo(map);
+        m.on('click', () => hlRow('kml-'+idx));
+        kmlLayers.push(m);
+      }
+    }
+
+    const lsEl = pm.querySelector('LineString > coordinates');
+    if (lsEl) {
+      const coords = parsePts(lsEl.textContent);
+      if (coords.length) {
+        const idx = kmlRows.length;
+        kmlRows.push({ name, type: 'LineString', lat: coords[0][0], lng: coords[0][1] });
+        coords.forEach(c => boundsArr.push(c));
+        const pl = L.polyline(coords, { color:'#ffc800', weight:2.5, opacity:0.9 })
+          .bindPopup(mkPopup(name,'LineString',coords[0][0],coords[0][1])).addTo(map);
+        pl.on('click', () => hlRow('kml-'+idx));
+        kmlLayers.push(pl);
+      }
+    }
+
+    const pgEl = pm.querySelector('Polygon outerBoundaryIs LinearRing coordinates')
+              || pm.querySelector('Polygon coordinates');
+    if (pgEl) {
+      const coords = parsePts(pgEl.textContent);
+      if (coords.length >= 3) {
+        let sLat=0, sLng=0;
+        coords.forEach(c => { sLat+=c[0]; sLng+=c[1]; });
+        const cLat=sLat/coords.length, cLng=sLng/coords.length;
+        const idx = kmlRows.length;
+        kmlRows.push({ name, type:'Polygon', lat:cLat, lng:cLng });
+        coords.forEach(c => boundsArr.push(c));
+        const pg = L.polygon(coords, { color:'#ff4d6d', weight:2, opacity:0.9, fillColor:'#ff4d6d', fillOpacity:0.12 })
+          .bindPopup(mkPopup(name,'Polygon',cLat,cLng,true)).addTo(map);
+        pg.on('click', () => hlRow('kml-'+idx));
+        kmlLayers.push(pg);
+        const cd = L.circleMarker([cLat,cLng], { radius:6, color:'#ff4d6d', weight:2, fillColor:'#ff1a40', fillOpacity:0.95 })
+          .bindPopup(mkPopup(name,'Polygon',cLat,cLng,true)).addTo(map);
+        cd.on('click', () => hlRow('kml-'+idx));
+        kmlLayers.push(cd);
+      }
+    }
+  });
+
+  if (!kmlRows.length) { setStatus('No coordinates found.', 'error'); return; }
+  if (boundsArr.length) map.fitBounds(L.latLngBounds(boundsArr), { padding:[50,50] });
+  renderTable();
+  setStatus(`✓ ${kmlRows.length} feature(s) · ${pms.length} Placemark(s)`, 'ok');
+  updateMapBtns();
+}
+
+// ═══════════════════════════════════════════════════
+//  MANUAL PINS
+// ═══════════════════════════════════════════════════
+function addManualPin() {
+  const lat = parseFloat(document.getElementById('pinLat').value);
+  const lng = parseFloat(document.getElementById('pinLng').value);
+  const name = document.getElementById('pinName').value.trim() || ('Pin ' + (++manualCounter));
+  if (isNaN(lat)||isNaN(lng)) { flashPinInputs(); return; }
+  if (lat<-90||lat>90||lng<-180||lng>180) { setStatus('Out of range: Lat ±90, Lng ±180','error'); flashPinInputs(); return; }
+
+  const idx = manualRows.length;
+  manualRows.push({ name, type:'Pin', lat, lng });
+
+  const iconHtml = `<div style="position:relative;width:20px;height:20px">
+    <div style="position:absolute;inset:0;border-radius:50%;background:rgba(167,139,250,0.3);animation:pulse-ring 1.4s ease-out infinite"></div>
+    <div style="position:absolute;inset:3px;border-radius:50%;background:#a78bfa;border:2px solid #fff;box-shadow:0 0 8px rgba(167,139,250,0.8)"></div>
+  </div>`;
+  const icon = L.divIcon({ className:'', html:iconHtml, iconSize:[20,20], iconAnchor:[10,10] });
+  const m = L.marker([lat,lng],{icon}).bindPopup(mkPinPopup(name,lat,lng)).addTo(map);
+  m.on('click', () => hlRow('manual-'+idx));
+  manualLayers.push({ marker:m, idx });
+
+  map.flyTo([lat,lng], Math.max(map.getZoom(),13), { duration:0.8 });
+  m.openPopup();
+  document.getElementById('pinLat').value='';
+  document.getElementById('pinLng').value='';
+  document.getElementById('pinName').value='';
+  document.getElementById('pinLat').focus();
+  renderTable(); updateMapBtns();
+  document.getElementById('clearPinsBtn').style.display='inline-block';
+  document.getElementById('btnPinKmz').disabled = false;
+  document.getElementById('btnPinKml').disabled  = false;
+}
+
+function removeManualPin(idx) {
+  const e = manualLayers.find(e=>e.idx===idx);
+  if (e) { map.removeLayer(e.marker); manualLayers=manualLayers.filter(e=>e.idx!==idx); }
+  manualRows.splice(idx,1);
+  manualLayers.forEach((e,i)=>{ e.idx=i; });
+  renderTable(); updateMapBtns();
+  if (!manualRows.length) {
+    document.getElementById('clearPinsBtn').style.display='none';
+    document.getElementById('btnPinKmz').disabled = true;
+    document.getElementById('btnPinKml').disabled  = true;
+  }
+}
+
+function clearManualPins() {
+  manualLayers.forEach(e=>map.removeLayer(e.marker));
+  manualLayers=[]; manualRows=[];
+  renderTable(); updateMapBtns();
+  document.getElementById('clearPinsBtn').style.display='none';
+  document.getElementById('btnPinKmz').disabled = true;
+  document.getElementById('btnPinKml').disabled  = true;
+}
+
+function flashPinInputs() {
+  ['pinLat','pinLng'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.style.borderColor='#ff4d6d';
+    setTimeout(()=>el.style.borderColor='',800);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  TABLE
+// ═══════════════════════════════════════════════════
+function renderTable() {
+  const all = [...kmlRows, ...manualRows];
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML='';
+  document.getElementById('totalBadge').textContent=all.length;
+
+  if (!all.length) {
+    document.getElementById('emptyState').style.display='flex';
+    document.getElementById('tbl').style.display='none'; return;
+  }
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('tbl').style.display='table';
+
+  kmlRows.forEach((r,i)=>{
+    const tr=document.createElement('tr'); tr.className='fr'; tr.id='row-kml-'+i;
+    tr.innerHTML=`<td>${i+1}</td><td style="max-width:75px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}">${esc(r.name)}</td>
+      <td><span class="pill p-${r.type==='LineString'?'Line':r.type}">${r.type}</span></td>
+      <td class="coord">${r.lat.toFixed(5)}</td><td class="coord">${r.lng.toFixed(5)}</td><td></td>`;
+    tr.addEventListener('click',()=>flyTo('kml',i)); tbody.appendChild(tr);
+  });
+  manualRows.forEach((r,i)=>{
+    const gi=kmlRows.length+i;
+    const tr=document.createElement('tr'); tr.className='fr mr'; tr.id='row-manual-'+i;
+    tr.innerHTML=`<td>${gi+1}</td><td style="max-width:75px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}">${esc(r.name)}</td>
+      <td><span class="pill p-Pin">📌</span></td>
+      <td class="coordm">${r.lat.toFixed(5)}</td><td class="coordm">${r.lng.toFixed(5)}</td>
+      <td><button class="del-btn" onclick="event.stopPropagation();removeManualPin(${i})">✕</button></td>`;
+    tr.addEventListener('click',()=>flyTo('manual',i)); tbody.appendChild(tr);
+  });
+}
+
+function hlRow(key) {
+  document.querySelectorAll('.fr').forEach(r=>r.classList.remove('active'));
+  const row=document.getElementById('row-'+key);
+  if (row) { row.classList.add('active'); row.scrollIntoView({block:'nearest'}); }
+}
+
+function flyTo(src, idx) {
+  hlRow(src+'-'+idx);
+  const r = src==='kml' ? kmlRows[idx] : manualRows[idx];
+  if (!r) return;
+  map.flyTo([r.lat,r.lng], Math.max(map.getZoom(),13), {duration:0.7});
+  if (src==='manual') { const e=manualLayers.find(e=>e.idx===idx); if(e) e.marker.openPopup(); }
+}
+
+function fitMap() {
+  const pts=[...kmlRows,...manualRows].map(r=>[r.lat,r.lng]);
+  if (pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[50,50]});
+}
+
+// ═══════════════════════════════════════════════════
+//  EXCEL → KML/KMZ CONVERTER
+// ═══════════════════════════════════════════════════
+let xlData = [];   // array of row objects
+let xlHeaders = []; // column names
+
+const xlDrop = document.getElementById('xlDrop');
+const xlInput = document.getElementById('xlInput');
+xlDrop.addEventListener('dragover', e=>{e.preventDefault();xlDrop.classList.add('drag-over');});
+xlDrop.addEventListener('dragleave',()=>xlDrop.classList.remove('drag-over'));
+xlDrop.addEventListener('drop', e=>{e.preventDefault();xlDrop.classList.remove('drag-over');if(e.dataTransfer.files[0])loadXL(e.dataTransfer.files[0]);});
+xlInput.addEventListener('change',e=>{if(e.target.files[0])loadXL(e.target.files[0]);});
+
+function loadXL(file) {
+  setCvStatus('Reading '+file.name+'…','info');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      xlData = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      if (!xlData.length) { setCvStatus('Sheet appears empty.','error'); return; }
+      xlHeaders = Object.keys(xlData[0]);
+      buildMapper();
+      setCvStatus(`✓ ${xlData.length} rows · ${xlHeaders.length} columns · ${wb.SheetNames[0]}`, 'ok');
+    } catch(err) { setCvStatus('Error reading file: '+err.message,'error'); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function buildMapper() {
+  document.getElementById('mapperCard').style.display='block';
+  const none = '<option value="">— none —</option>';
+  const opts = xlHeaders.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('');
+
+  // Auto-detect common column names
+  const autoFind = (...keys) => xlHeaders.find(h => keys.some(k => h.toLowerCase().includes(k))) || '';
+
+  const latGuess  = autoFind('lat');
+  const lngGuess  = autoFind('lon','lng','long');
+  const nameGuess = autoFind('name','label','title','placemark');
+  const descGuess = autoFind('desc','note','comment','info','remark');
+
+  ['colLat','colLng','colName','colDesc'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = none + opts;
+  });
+  document.getElementById('colLat').value  = latGuess;
+  document.getElementById('colLng').value  = lngGuess;
+  document.getElementById('colName').value = nameGuess;
+  document.getElementById('colDesc').value = descGuess;
+
+  ['colLat','colLng','colName','colDesc'].forEach(id =>
+    document.getElementById(id).addEventListener('change', updatePreview)
+  );
+
+  updatePreview();
+}
+
+function updatePreview() {
+  const latCol  = document.getElementById('colLat').value;
+  const lngCol  = document.getElementById('colLng').value;
+  const nameCol = document.getElementById('colName').value;
+  const descCol = document.getElementById('colDesc').value;
+
+  const hasReq = latCol && lngCol;
+  document.getElementById('btnKml').disabled = !hasReq;
+  document.getElementById('btnKmz').disabled = !hasReq;
+  document.getElementById('btnSendMap').disabled = !hasReq;
+
+  // Build preview table (first 5 rows)
+  const table = document.getElementById('previewTable');
+  const cols = xlHeaders.slice(0, 8); // show max 8 cols
+  const hlCols = [latCol, lngCol, nameCol, descCol].filter(Boolean);
+
+  const headRow = cols.map(h => `<th${hlCols.includes(h)?' style="color:var(--accent5)"':''}>${esc(h)}</th>`).join('');
+  const bodyRows = xlData.slice(0,5).map(row =>
+    '<tr>' + cols.map(h => `<td class="${hlCols.includes(h)?'hl':''}">${esc(String(row[h]??''))}</td>`).join('') + '</tr>'
+  ).join('');
+  table.innerHTML = `<thead><tr>${headRow}</tr></thead><tbody>${bodyRows}</tbody>`;
+}
+
+// ── Build KML string ──
+function buildKML(rows) {
+  const latCol  = document.getElementById('colLat').value;
+  const lngCol  = document.getElementById('colLng').value;
+  const nameCol = document.getElementById('colName').value;
+  const descCol = document.getElementById('colDesc').value;
+
+  let placemarks = '', count = 0;
+  rows.forEach((row, i) => {
+    const lat = parseFloat(row[latCol]);
+    const lng = parseFloat(row[lngCol]);
+    if (isNaN(lat)||isNaN(lng)) return;
+    const name = nameCol ? esc(String(row[nameCol]||'')) : `Point ${i+1}`;
+    const desc = descCol ? `<description>${esc(String(row[descCol]||''))}</description>` : '';
+    placemarks += `  <Placemark>\n    <name>${name}</name>\n    ${desc}\n    <Point><coordinates>${lng},${lat},0</coordinates></Point>\n  </Placemark>\n`;
+    count++;
+  });
+
+  if (!count) return null;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Export</name>\n${placemarks}</Document>\n</kml>`;
+}
+
+async function doConvert(fmt) {
+  const kmlStr = buildKML(xlData);
+  if (!kmlStr) { setCvStatus('No valid lat/lng rows found — check column mapping.','error'); return; }
+
+  const latCol = document.getElementById('colLat').value;
+  const lngCol = document.getElementById('colLng').value;
+  const validCount = xlData.filter(r => !isNaN(parseFloat(r[latCol])) && !isNaN(parseFloat(r[lngCol]))).length;
+
+  if (fmt === 'kml') {
+    dl('export.kml', kmlStr, 'application/vnd.google-earth.kml+xml');
+    setCvStatus(`✓ KML downloaded · ${validCount} points`, 'ok');
+  } else {
+    // KMZ = ZIP with doc.kml inside
+    const zip = new JSZip();
+    zip.file('doc.kml', kmlStr);
+    const blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='export.kmz'; a.click();
+    setCvStatus(`✓ KMZ downloaded · ${validCount} points`, 'ok');
+  }
+}
+
+function sendToMap() {
+  const latCol  = document.getElementById('colLat').value;
+  const lngCol  = document.getElementById('colLng').value;
+  const nameCol = document.getElementById('colName').value;
+
+  let added = 0;
+  xlData.forEach((row, i) => {
+    const lat = parseFloat(row[latCol]);
+    const lng = parseFloat(row[lngCol]);
+    if (isNaN(lat)||isNaN(lng)) return;
+    const name = nameCol ? (String(row[nameCol]||'').trim() || 'Row '+(i+1)) : 'Row '+(i+1);
+
+    const idx = manualRows.length;
+    manualRows.push({ name, type:'Pin', lat, lng });
+    const iconHtml=`<div style="position:relative;width:16px;height:16px"><div style="position:absolute;inset:2px;border-radius:50%;background:#34d399;border:2px solid #fff;box-shadow:0 0 6px rgba(52,211,153,0.8)"></div></div>`;
+    const icon = L.divIcon({className:'',html:iconHtml,iconSize:[16,16],iconAnchor:[8,8]});
+    const m = L.marker([lat,lng],{icon}).bindPopup(mkPinPopup(name,lat,lng,'#34d399')).addTo(map);
+    m.on('click',()=>hlRow('manual-'+idx));
+    manualLayers.push({marker:m,idx});
+    added++;
+  });
+
+  if (!added) { setCvStatus('No valid rows to send.','error'); return; }
+
+  const pts = manualRows.map(r=>[r.lat,r.lng]);
+  map.fitBounds(L.latLngBounds(pts),{padding:[50,50]});
+  renderTable(); updateMapBtns();
+  document.getElementById('clearPinsBtn').style.display='inline-block';
+  setCvStatus(`✓ ${added} points sent to map`, 'ok');
+  switchTab('map');
+}
+
+// ═══════════════════════════════════════════════════
+//  SHARED HELPERS
+// ═══════════════════════════════════════════════════
+function parsePts(raw) {
+  return raw.trim().split(/\s+/)
+    .map(p=>{ const ps=p.split(','); return [parseFloat(ps[1]),parseFloat(ps[0])]; })
+    .filter(c=>!isNaN(c[0])&&!isNaN(c[1]));
+}
+
+function mkPopup(name,type,lat,lng,centroid=false) {
+  return `<div class="pu-title">${esc(name)}</div>
+    <div style="margin-bottom:4px"><span class="pill p-${type==='LineString'?'Line':type}">${type}</span>${centroid?' <span style="color:#4a5568;font-size:0.58rem">centroid</span>':''}</div>
+    <div class="pu-row">Lat <span>${lat.toFixed(6)}</span></div>
+    <div class="pu-row">Lng <span>${lng.toFixed(6)}</span></div>`;
+}
+
+function mkPinPopup(name,lat,lng,color='#a78bfa') {
+  return `<div class="pu-title pu-titlep" style="color:${color}">📌 ${esc(name)}</div>
+    <div class="pu-row">Lat <span>${lat.toFixed(6)}</span></div>
+    <div class="pu-row">Lng <span>${lng.toFixed(6)}</span></div>`;
+}
+
+function clearKML() {
+  kmlRows=[]; kmlLayers.forEach(l=>map.removeLayer(l)); kmlLayers=[];
+  renderTable(); updateMapBtns();
+}
+
+function setStatus(msg, cls) {
+  const el=document.getElementById('status'); el.textContent=msg; el.className=cls||'';
+}
+function setCvStatus(msg, cls) {
+  const el=document.getElementById('cv-status'); el.textContent=msg; el.className=cls||'';
+}
+
+function updateMapBtns() {
+  const has = kmlRows.length+manualRows.length > 0;
+  document.getElementById('fitBtn').disabled = !has;
+  document.getElementById('csvBtn').disabled = !has;
+  document.getElementById('jsonBtn').disabled = !has;
+}
+
+function exportCSV() {
+  const all=[...kmlRows,...manualRows];
+  const h='Name,Type,Latitude,Longitude\n';
+  dl('coordinates.csv', h+all.map(r=>`"${r.name}","${r.type}",${r.lat.toFixed(7)},${r.lng.toFixed(7)}`).join('\n'), 'text/csv');
+}
+
+function exportJSON() {
+  const all=[...kmlRows,...manualRows];
+  dl('coordinates.json', JSON.stringify(all.map(r=>({name:r.name,type:r.type,latitude:+r.lat.toFixed(7),longitude:+r.lng.toFixed(7)})),null,2), 'application/json');
+}
+
+function exportPinsKML() {
+  if (!manualRows.length) return;
+  const kmlStr = buildPinsKML(manualRows);
+  dl('pins.kml', kmlStr, 'application/vnd.google-earth.kml+xml');
+  setStatus(`✓ KML downloaded · ${manualRows.length} pin(s)`, 'ok');
+}
+
+async function exportPinsKMZ() {
+  if (!manualRows.length) return;
+  const kmlStr = buildPinsKML(manualRows);
+  const zip = new JSZip();
+  zip.file('doc.kml', kmlStr);
+  const blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='pins.kmz'; a.click();
+  setStatus(`✓ KMZ downloaded · ${manualRows.length} pin(s)`, 'ok');
+}
+
+function buildPinsKML(rows) {
+  const placemarks = rows.map(r =>
+    `  <Placemark>\n    <name>${esc(r.name)}</name>\n    <Point><coordinates>${r.lng.toFixed(7)},${r.lat.toFixed(7)},0</coordinates></Point>\n  </Placemark>`
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>Pins</name>\n${placemarks}\n</Document>\n</kml>`;
+}
+
+function dl(name, content, mime) {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download=name; a.click();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════
+const GIST_FILENAME = 'locations-portal-pins.json';
+let _pendingGistPins = null; // holds fetched pins waiting for user confirmation
+
+// Persist token & gist ID in sessionStorage (not localStorage) so it's per-tab
+const tokenEl  = document.getElementById('gistToken');
+const gistIdEl = document.getElementById('gistId');
+
+tokenEl.addEventListener('input',  () => { sessionStorage.setItem('gist_token', tokenEl.value); });
+gistIdEl.addEventListener('input', () => { sessionStorage.setItem('gist_id',    gistIdEl.value); });
+
+// Restore from session
+(function restoreSession() {
+  const t = sessionStorage.getItem('gist_token');
+  const g = sessionStorage.getItem('gist_id');
+  if (t) tokenEl.value  = t;
+  if (g) gistIdEl.value = g;
+  // If we already have a gist ID, auto-fetch on load
+  if (t && g) autoFetchGist(t, g);
+})();
+
+function setGistStatus(msg, cls) {
+  const el = document.getElementById('gistStatus');
+  el.textContent = msg;
+  el.className = 'gist-status ' + (cls || '');
+}
+
+async function saveToGist() {
+  const token  = tokenEl.value.trim();
+  const gistId = gistIdEl.value.trim();
+
+  if (!token) { setGistStatus('⚠ Please enter your GitHub token', 'err'); tokenEl.focus(); return; }
+  if (!manualRows.length) { setGistStatus('⚠ No pins to save — drop a pin first', 'err'); return; }
+
+  setGistStatus('Saving…', 'info');
+  document.getElementById('btnGistSave').disabled = true;
+
+  const payload = JSON.stringify({ saved: new Date().toISOString(), pins: manualRows }, null, 2);
+
+  try {
+    let res, data;
+
+    if (gistId) {
+      // Update existing gist
+      res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { [GIST_FILENAME]: { content: payload } } })
+      });
+    } else {
+      // Create new gist
+      res = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: 'Locations Portal — saved pins',
+          public: false,
+          files: { [GIST_FILENAME]: { content: payload } }
+        })
+      });
+    }
+
+    data = await res.json();
+
+    if (!res.ok) {
+      const msg = data.message || res.statusText;
+      setGistStatus('✕ GitHub error: ' + msg, 'err');
+      return;
+    }
+
+    // Store the gist ID for future saves
+    gistIdEl.value = data.id;
+    sessionStorage.setItem('gist_id', data.id);
+
+    setGistStatus(`✓ ${manualRows.length} pin(s) saved · Gist ${data.id.slice(0,8)}…`, 'ok');
+  } catch(err) {
+    setGistStatus('✕ Network error: ' + err.message, 'err');
+  } finally {
+    document.getElementById('btnGistSave').disabled = false;
+  }
+}
+
+async function autoFetchGist(token, gistId) {
+  setGistStatus('Checking for saved pins…', 'info');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { Authorization: `token ${token}` }
+    });
+    if (!res.ok) { setGistStatus('Ready — could not fetch Gist', ''); return; }
+
+    const data = await res.json();
+    const file = data.files && data.files[GIST_FILENAME];
+    if (!file || !file.content) { setGistStatus('Ready — no saved pins found in Gist', ''); return; }
+
+    const parsed = JSON.parse(file.content);
+    if (!parsed.pins || !parsed.pins.length) { setGistStatus('Ready — Gist is empty', ''); return; }
+
+    // Store for prompt
+    _pendingGistPins = parsed.pins;
+    document.getElementById('modalPinCount').textContent =
+      parsed.pins.length + ' pin' + (parsed.pins.length > 1 ? 's' : '') +
+      (parsed.saved ? ' · saved ' + new Date(parsed.saved).toLocaleDateString() : '');
+
+    // Show the prompt modal
+    document.getElementById('reloadModal').classList.add('show');
+    setGistStatus(`Found ${parsed.pins.length} saved pin(s) — awaiting your choice`, 'info');
+
+  } catch(e) {
+    setGistStatus('Ready — Gist check failed: ' + e.message, '');
+  }
+}
+
+function confirmReload() {
+  document.getElementById('reloadModal').classList.remove('show');
+  if (!_pendingGistPins || !_pendingGistPins.length) return;
+
+  _pendingGistPins.forEach(r => {
+    const lat = parseFloat(r.lat), lng = parseFloat(r.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    const name = r.name || ('Pin ' + (++manualCounter));
+
+    const idx = manualRows.length;
+    manualRows.push({ name, type: 'Pin', lat, lng });
+
+    const iconHtml = `<div style="position:relative;width:20px;height:20px">
+      <div style="position:absolute;inset:0;border-radius:50%;background:rgba(167,139,250,0.3);animation:pulse-ring 1.4s ease-out infinite"></div>
+      <div style="position:absolute;inset:3px;border-radius:50%;background:#a78bfa;border:2px solid #fff;box-shadow:0 0 8px rgba(167,139,250,0.8)"></div>
+    </div>`;
+    const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [20,20], iconAnchor: [10,10] });
+    const m = L.marker([lat, lng], { icon }).bindPopup(mkPinPopup(name, lat, lng)).addTo(map);
+    m.on('click', () => hlRow('manual-' + idx));
+    manualLayers.push({ marker: m, idx });
+  });
+
+  const pts = manualRows.map(r => [r.lat, r.lng]);
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [50,50] });
+  renderTable(); updateMapBtns();
+  document.getElementById('clearPinsBtn').style.display = 'inline-block';
+  document.getElementById('btnPinKmz').disabled = false;
+  document.getElementById('btnPinKml').disabled  = false;
+
+  setGistStatus(`✓ ${_pendingGistPins.length} pin(s) reloaded from Gist`, 'ok');
+  _pendingGistPins = null;
+}
+
+function dismissReload() {
+  document.getElementById('reloadModal').classList.remove('show');
+  setGistStatus('Ready — pins not reloaded', '');
+  _pendingGistPins = null;
+}
+
+// Also trigger fetch when user finishes typing gist ID (if token already present)
+gistIdEl.addEventListener('change', () => {
+  const t = tokenEl.value.trim();
+  const g = gistIdEl.value.trim();
+  if (t && g) autoFetchGist(t, g);
+});
+</script>
+</body>
+</html>
