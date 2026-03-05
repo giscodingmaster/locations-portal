@@ -281,7 +281,7 @@
   <span class="gist-label">☁ GitHub Gist</span>
   <input class="gist-input" id="gistToken" type="password" placeholder="Personal Access Token (gist scope)" autocomplete="off">
   <input class="gist-input" id="gistId" type="text" placeholder="Gist ID (blank = create new)" style="width:185px">
-  <button class="btn-gist-save" id="btnGistSave" onclick="saveToGist()">💾 Save Pins</button>
+  <button class="btn-gist-save" id="btnGistSave" onclick="saveToGist()">💾 Save All</button>
   <span class="gist-status" id="gistStatus">Enter token to enable cloud saving</span>
 </div>
 
@@ -966,9 +966,10 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 // ══════════════════════════════════
 //  GITHUB GIST STORAGE
+//  Saves ALL locations: imported + manual pins
 // ══════════════════════════════════
-const GIST_FILENAME='locations-portal-pins.json';
-let _pendingGistPins=null;
+const GIST_FILENAME='locations-portal-data.json';
+let _pendingGistData=null;
 const tokenEl=document.getElementById('gistToken');
 const gistIdEl=document.getElementById('gistId');
 tokenEl.addEventListener('input',()=>sessionStorage.setItem('gist_token',tokenEl.value));
@@ -979,48 +980,88 @@ gistIdEl.addEventListener('input',()=>sessionStorage.setItem('gist_id',gistIdEl.
   if(g) gistIdEl.value=g;
   if(t&&g) autoFetchGist(t,g);
 })();
+
 function setGistStatus(msg,cls){ const el=document.getElementById('gistStatus'); el.textContent=msg; el.className='gist-status '+(cls||''); }
+
 async function saveToGist(){
   const token=tokenEl.value.trim(), gistId=gistIdEl.value.trim();
   if(!token){ setGistStatus('⚠ Enter your GitHub token','err'); tokenEl.focus(); return; }
-  if(!manualRows.length){ setGistStatus('⚠ No pins to save — drop a pin first','err'); return; }
+  const allLocations=[...importedRows,...manualRows];
+  if(!allLocations.length){ setGistStatus('⚠ No locations to save — import a file or drop a pin first','err'); return; }
   setGistStatus('Saving…','info');
   document.getElementById('btnGistSave').disabled=true;
-  const payload=JSON.stringify({saved:new Date().toISOString(),pins:manualRows},null,2);
+
+  // Save everything: imported features + manual pins, tagged by source
+  const payload=JSON.stringify({
+    saved: new Date().toISOString(),
+    version: 2,
+    imported: importedRows,   // Points, Lines, Polygons from files — stored as point coords
+    pins: manualRows          // Hand-dropped pins
+  }, null, 2);
+
   try{
     const res=await fetch(gistId?`https://api.github.com/gists/${gistId}`:'https://api.github.com/gists',{
-      method:gistId?'PATCH':'POST',
+      method: gistId?'PATCH':'POST',
       headers:{Authorization:`token ${token}`,'Content-Type':'application/json'},
-      body:JSON.stringify(gistId?{files:{[GIST_FILENAME]:{content:payload}}}:{description:'Locations Portal — saved pins',public:false,files:{[GIST_FILENAME]:{content:payload}}})
+      body: JSON.stringify(gistId
+        ? {files:{[GIST_FILENAME]:{content:payload}}}
+        : {description:'Locations Portal — saved locations',public:false,files:{[GIST_FILENAME]:{content:payload}}}
+      )
     });
     const data=await res.json();
     if(!res.ok){ setGistStatus('✕ GitHub: '+(data.message||res.statusText),'err'); return; }
     gistIdEl.value=data.id; sessionStorage.setItem('gist_id',data.id);
-    setGistStatus(`✓ ${manualRows.length} pin(s) saved · Gist ${data.id.slice(0,8)}…`,'ok');
+    const total=allLocations.length;
+    setGistStatus(`✓ ${total} location${total>1?'s':''} saved · Gist ${data.id.slice(0,8)}…`,'ok');
   }catch(err){ setGistStatus('✕ Network error: '+err.message,'err'); }
   finally{ document.getElementById('btnGistSave').disabled=false; }
 }
+
 async function autoFetchGist(token,gistId){
-  setGistStatus('Checking for saved pins…','info');
+  setGistStatus('Checking for saved locations…','info');
   try{
     const res=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{Authorization:`token ${token}`}});
     if(!res.ok){ setGistStatus('Ready — could not fetch Gist',''); return; }
     const data=await res.json();
-    const file=data.files&&data.files[GIST_FILENAME];
-    if(!file||!file.content){ setGistStatus('Ready — no saved pins in Gist',''); return; }
+    // Support both old filename (pins only) and new filename
+    const file=data.files&&(data.files[GIST_FILENAME]||data.files['locations-portal-pins.json']);
+    if(!file||!file.content){ setGistStatus('Ready — no saved locations in Gist',''); return; }
     const parsed=JSON.parse(file.content);
-    if(!parsed.pins||!parsed.pins.length){ setGistStatus('Ready — Gist is empty',''); return; }
-    _pendingGistPins=parsed.pins;
+
+    // Support old format (just .pins) and new format (.imported + .pins)
+    const importedCount=(parsed.imported||[]).length;
+    const pinsCount=(parsed.pins||[]).length;
+    const total=importedCount+pinsCount;
+    if(!total){ setGistStatus('Ready — Gist is empty',''); return; }
+
+    _pendingGistData=parsed;
+    const dateStr=parsed.saved?' · saved '+new Date(parsed.saved).toLocaleDateString():'';
     document.getElementById('modalPinCount').textContent=
-      parsed.pins.length+' pin'+(parsed.pins.length>1?'s':'')+(parsed.saved?' · saved '+new Date(parsed.saved).toLocaleDateString():'');
+      `${total} location${total>1?'s':''}${importedCount?' ('+importedCount+' imported, '+pinsCount+' pins)':''}${dateStr}`;
     document.getElementById('reloadModal').classList.add('show');
-    setGistStatus(`Found ${parsed.pins.length} saved pin(s) — awaiting your choice`,'info');
+    setGistStatus(`Found ${total} saved location${total>1?'s':''} — awaiting your choice`,'info');
   }catch(e){ setGistStatus('Ready — Gist check failed: '+e.message,''); }
 }
+
 function confirmReload(){
   document.getElementById('reloadModal').classList.remove('show');
-  if(!_pendingGistPins||!_pendingGistPins.length) return;
-  _pendingGistPins.forEach(r=>{
+  if(!_pendingGistData) return;
+  const parsed=_pendingGistData;
+  const bounds=[];
+
+  // Restore imported locations (Points, Pins, Lines, Polygons stored as point coords)
+  (parsed.imported||[]).forEach(r=>{
+    const lat=parseFloat(r.lat), lng=parseFloat(r.lng);
+    if(isNaN(lat)||isNaN(lng)) return;
+    addPoint(r.name||'Location', r.type||'Point', lat, lng);
+    bounds.push([lat,lng]);
+  });
+  if((parsed.imported||[]).length){
+    document.getElementById('clearImportBtn').style.display='inline-block';
+  }
+
+  // Restore manual pins with their animated marker style
+  (parsed.pins||[]).forEach(r=>{
     const lat=parseFloat(r.lat), lng=parseFloat(r.lng);
     if(isNaN(lat)||isNaN(lng)) return;
     const name=r.name||('Pin '+(++manualCounter));
@@ -1034,21 +1075,28 @@ function confirmReload(){
     const m=L.marker([lat,lng],{icon}).bindPopup(mkPinPopup(name,lat,lng)).addTo(map);
     m.on('click',()=>hlRow('manual-'+idx));
     manualLayers.push({marker:m,idx});
+    bounds.push([lat,lng]);
   });
-  const pts=manualRows.map(r=>[r.lat,r.lng]);
-  if(pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[50,50]});
+  if((parsed.pins||[]).length){
+    document.getElementById('clearPinsBtn').style.display='inline-block';
+    document.getElementById('btnPinKmz').disabled=false;
+    document.getElementById('btnPinKml').disabled=false;
+  }
+
+  if(bounds.length) map.fitBounds(L.latLngBounds(bounds),{padding:[50,50]});
   renderTable(); updateMapBtns();
-  document.getElementById('clearPinsBtn').style.display='inline-block';
-  document.getElementById('btnPinKmz').disabled=false;
-  document.getElementById('btnPinKml').disabled=false;
-  setGistStatus(`✓ ${_pendingGistPins.length} pin(s) reloaded from Gist`,'ok');
-  _pendingGistPins=null;
+
+  const total=(parsed.imported||[]).length+(parsed.pins||[]).length;
+  setGistStatus(`✓ ${total} location${total>1?'s':''} reloaded from Gist`,'ok');
+  _pendingGistData=null;
 }
+
 function dismissReload(){
   document.getElementById('reloadModal').classList.remove('show');
-  setGistStatus('Ready — pins not reloaded','');
-  _pendingGistPins=null;
+  setGistStatus('Ready — locations not reloaded','');
+  _pendingGistData=null;
 }
+
 gistIdEl.addEventListener('change',()=>{
   const t=tokenEl.value.trim(), g=gistIdEl.value.trim();
   if(t&&g) autoFetchGist(t,g);
