@@ -150,7 +150,7 @@
   .send-map-btn:hover{background:rgba(0,229,255,0.14);}
   .send-map-btn:disabled{opacity:.25;cursor:default;pointer-events:none;}
 
-  /* Leaflet */
+  /* Leaflet Popups & Tooltips (Labels) */
   .leaflet-popup-content-wrapper{background:#13161d !important;border:1px solid #1f2430 !important;border-radius:8px !important;color:#e2e8f0 !important;font-family:'Space Mono',monospace !important;font-size:0.7rem !important;box-shadow:0 8px 32px rgba(0,0,0,0.7) !important;}
   .leaflet-popup-tip{background:#13161d !important;}
   .leaflet-popup-close-button{color:#4a5568 !important;top:5px !important;right:7px !important;}
@@ -159,6 +159,24 @@
   .pu-row{color:#4a5568;font-size:0.62rem;margin-top:2px;}
   .pu-row span{color:#e2e8f0;}
   @keyframes pulse-ring{0%{transform:scale(0.8);opacity:1;}100%{transform:scale(2.2);opacity:0;}}
+
+  /* NATIVE LEAFLET TOOLTIPS AS LABELS */
+  .leaflet-tooltip.map-label {
+    background: rgba(13,15,20,0.85) !important;
+    border: 1px solid rgba(0,229,255,0.3) !important;
+    color: #e2e8f0 !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.58rem !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+    border-radius: 4px !important;
+  }
+  .leaflet-tooltip.map-label::before { border-right-color: rgba(13,15,20,0.85) !important; }
+  .leaflet-tooltip.map-label.pin-label {
+    border-color: rgba(167,139,250,0.4) !important;
+    color: #c4b5fd !important;
+  }
+  body.hide-labels .leaflet-tooltip.map-label { display: none !important; }
 
   /* MODAL */
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9000;align-items:center;justify-content:center;}
@@ -178,18 +196,64 @@
   .col-map-grid select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Space Mono',monospace;font-size:0.62rem;padding:0.28rem 0.5rem;outline:none;cursor:pointer;}
   .col-map-grid select:focus{border-color:var(--accent);}
 
-  @media(max-width:640px){
-    body{height:auto;overflow:auto;}
-    .view.active{flex-direction:column;}
-    #map{height:55vw;min-height:240px;}
-    .sidebar{width:100%;border-left:none;border-top:1px solid var(--border);max-height:300px;}
-    .convert-view{padding:1rem;}
-  }
+  /* ── TOOLBAR TOGGLE BUTTONS ── */
+  .tool-btn{background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted);padding:0.28rem 0.65rem;border-radius:6px;cursor:pointer;font-family:'Space Mono',monospace;font-size:0.58rem;transition:all .18s;white-space:nowrap;}
+  .tool-btn:hover{background:rgba(255,255,255,0.09);color:var(--text);}
+  .tool-btn.active{background:rgba(0,229,255,0.12);border-color:rgba(0,229,255,0.4);color:var(--accent);}
+  .tool-btn.active.purple{background:rgba(167,139,250,0.12);border-color:rgba(167,139,250,0.4);color:var(--accent4);}
+  .tool-btn.active.green{background:rgba(52,211,153,0.12);border-color:rgba(52,211,153,0.4);color:var(--accent5);}
+  .tool-btn.active.red{background:rgba(255,77,109,0.12);border-color:rgba(255,77,109,0.4);color:var(--accent2);}
+
+  /* ── TOOLS BAR ── */
+  .tools-bar{display:flex;align-items:center;gap:0.45rem;padding:0.38rem 1rem;border-bottom:1px solid var(--border);background:var(--panel2);flex-shrink:0;flex-wrap:wrap;}
+  .tools-sep{width:1px;height:16px;background:var(--border);flex-shrink:0;}
+  .tools-label{font-family:'Syne',sans-serif;font-size:0.56rem;text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);white-space:nowrap;}
+
+  /* ── SEARCH BOX ── */
+  .search-wrap{position:relative;flex:1;min-width:140px;max-width:260px;}
+  .search-input{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Space Mono',monospace;font-size:0.62rem;padding:0.28rem 0.55rem 0.28rem 1.6rem;outline:none;transition:border-color .2s;}
+  .search-input:focus{border-color:var(--accent);}
+  .search-input::placeholder{color:var(--muted);}
+  .search-icon{position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);font-size:0.7rem;pointer-events:none;color:var(--muted);}
+  .search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:8px;z-index:8000;max-height:200px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.7);display:none;}
+  .search-results.show{display:block;}
+  .search-result-item{padding:0.45rem 0.7rem;font-size:0.62rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
+  .search-result-item:last-child{border-bottom:none;}
+  .search-result-item:hover{background:rgba(0,229,255,0.08);}
+  .search-result-name{color:var(--text);}
+  .search-result-sub{color:var(--muted);font-size:0.57rem;margin-top:1px;}
+
+  /* ── MEASURE TOOLTIP ── */
+  .measure-tooltip{background:rgba(255,200,0,0.15);border:1px solid rgba(255,200,0,0.4);color:#ffc800;padding:3px 8px;border-radius:4px;font-family:'Space Mono',monospace;font-size:0.62rem;white-space:nowrap;}
+
+  /* ── CONTEXT MENU ── */
+  .ctx-menu{position:fixed;background:var(--panel);border:1px solid var(--border);border-radius:8px;min-width:160px;z-index:9500;box-shadow:0 8px 32px rgba(0,0,0,0.7);overflow:hidden;display:none;}
+  .ctx-menu.show{display:block;}
+  .ctx-item{padding:0.5rem 0.9rem;font-family:'Space Mono',monospace;font-size:0.62rem;color:var(--text);cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:0.5rem;}
+  .ctx-item:hover{background:rgba(0,229,255,0.08);}
+  .ctx-item.danger:hover{background:rgba(255,77,109,0.1);color:var(--accent2);}
+  .ctx-sep{height:1px;background:var(--border);margin:0.2rem 0;}
+
+  /* ── COORDINATES DISPLAY ── */
+  .coords-display{font-family:'Space Mono',monospace;font-size:0.56rem;color:var(--muted);white-space:nowrap;}
+
+  /* ── BASEMAP SELECT ── */
+  .basemap-select{background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Space Mono',monospace;font-size:0.58rem;padding:0.26rem 0.5rem;outline:none;cursor:pointer;transition:border-color .2s;}
+  .basemap-select:focus{border-color:var(--accent);}
+
+  /* ── SIDEBAR SEARCH ── */
+  .sidebar-search{padding:0.4rem 0.7rem;border-bottom:1px solid var(--border);background:var(--panel2);flex-shrink:0;}
+  .sidebar-search input{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Space Mono',monospace;font-size:0.62rem;padding:0.28rem 0.55rem;outline:none;transition:border-color .2s;}
+  .sidebar-search input:focus{border-color:var(--accent4);}
+  .sidebar-search input::placeholder{color:var(--muted);}
+
+  /* ── EDITABLE CELL ── */
+  .name-cell{cursor:text;}
+  .name-cell:hover{color:var(--accent4);}
 </style>
 </head>
 <body>
 
-<!-- GIST RELOAD MODAL -->
 <div class="modal-overlay" id="reloadModal">
   <div class="modal-box">
     <div class="modal-icon">📍</div>
@@ -202,7 +266,6 @@
   </div>
 </div>
 
-<!-- CSV COLUMN MAPPER MODAL -->
 <div class="modal-overlay" id="csvModal">
   <div class="modal-box">
     <div class="modal-icon">📋</div>
@@ -221,7 +284,6 @@
   </div>
 </div>
 
-<!-- JSON COLUMN MAPPER MODAL -->
 <div class="modal-overlay" id="jsonModal">
   <div class="modal-box">
     <div class="modal-icon">{ }</div>
@@ -240,7 +302,17 @@
   </div>
 </div>
 
-<!-- TOPBAR -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="ctxPinHere()">📌 Drop pin here</div>
+  <div class="ctx-item" onclick="ctxCopyCoords()">📋 Copy coordinates</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxOpenStreetView()">🌐 Open in Google Maps</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="clearAllData()">🗑️ Clear All Map Data</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="hideCtxMenu()">✕ Close</div>
+</div>
+
 <div class="topbar">
   <h1>📍 Locations Portal</h1>
   <span id="status">Ready</span>
@@ -248,9 +320,10 @@
   <button class="btn" id="fitBtn"  onclick="fitMap()"    disabled>⊞ Fit</button>
   <button class="btn" id="csvBtn"  onclick="exportCSV()" disabled>⬇ CSV</button>
   <button class="btn" id="jsonBtn" onclick="exportJSON()" disabled>⬇ JSON</button>
+  <div class="sep"></div>
+  <span class="coords-display" id="coordsDisplay">—</span>
 </div>
 
-<!-- IMPORT BAR -->
 <div class="import-bar">
   <span class="import-label">📂 Import</span>
   <label class="fmt-btn">
@@ -276,7 +349,31 @@
   <span id="importStatus"></span>
 </div>
 
-<!-- GIST BAR -->
+<div class="tools-bar">
+  <span class="tools-label">🗺 Map</span>
+  <select class="basemap-select" id="basemapSelect" onchange="switchBasemap(this.value)">
+    <option value="dark">Dark (CartoDB)</option>
+    <option value="street">Street (OSM)</option>
+    <option value="satellite">Satellite (Esri)</option>
+    <option value="topo">Topo (Esri)</option>
+    <option value="light">Light (CartoDB)</option>
+  </select>
+  <div class="tools-sep"></div>
+  <span class="tools-label">Labels</span>
+  <button class="tool-btn active purple" id="btnLabels" onclick="toggleLabels()">🏷 Show</button>
+  <div class="tools-sep"></div>
+  <span class="tools-label">Tools</span>
+  <button class="tool-btn" id="btnMeasure" onclick="toggleMeasure()">📐 Measure</button>
+  <button class="tool-btn" onclick="locateUser()">📍 Find Me</button>
+  <button class="tool-btn" id="btnFullscreen" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+  <div class="tools-sep"></div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="geocodeInput" placeholder="Search place / address…" autocomplete="off" onkeydown="if(event.key==='Enter')geocodeSearch()">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
 <div class="gist-bar">
   <span class="gist-label">☁ GitHub Gist</span>
   <input class="gist-input" id="gistToken" type="password" placeholder="Personal Access Token (gist scope)" autocomplete="off">
@@ -285,13 +382,11 @@
   <span class="gist-status" id="gistStatus">Enter token to enable cloud saving</span>
 </div>
 
-<!-- TABS -->
 <div class="tabs">
   <div class="tab tab-map active" id="tabMap" onclick="switchTab('map')">🗺 Map Viewer</div>
   <div class="tab tab-convert" id="tabConvert" onclick="switchTab('convert')">⚡ Excel → KML/KMZ</div>
 </div>
 
-<!-- MAP VIEW -->
 <div class="view active" id="viewMap">
   <div id="map"></div>
   <div class="sidebar">
@@ -317,6 +412,9 @@
       <span class="badge badge-red" id="clearImportBtn" onclick="clearImported()" style="display:none;margin-left:auto">✕ imports</span>
       <span class="badge badge-red" id="clearPinsBtn"   onclick="clearManualPins()" style="display:none">✕ pins</span>
     </div>
+    <div class="sidebar-search">
+      <input type="text" id="sidebarFilter" placeholder="🔍 Filter locations…" oninput="filterTable(this.value)">
+    </div>
     <div class="table-scroll">
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">🗺️</div>
@@ -330,12 +428,11 @@
   </div>
 </div>
 
-<!-- CONVERT VIEW -->
 <div class="view" id="viewConvert">
   <div class="convert-view">
     <div class="cv-header">
       <h2>⚡ Excel → KML / KMZ</h2>
-      <p>Load any .xlsx / .xls / .csv · map your lat &amp; lng columns · download KML or KMZ instantly</p>
+      <p>Load any .xlsx / .xls / .csv · map your lat & lng columns · download KML or KMZ instantly</p>
     </div>
     <div class="cv-card">
       <div class="cv-card-title">① Upload spreadsheet</div>
@@ -361,9 +458,9 @@
           <div class="preview-table-wrap"><table class="preview-table" id="previewTable"></table></div>
         </div>
         <div class="convert-actions">
-          <button class="btn-green"    id="btnKml"     onclick="doConvert('kml')"  disabled>⬇ Download KML</button>
-          <button class="btn-green2"   id="btnKmz"     onclick="doConvert('kmz')"  disabled>⬇ Download KMZ</button>
-          <button class="send-map-btn" id="btnSendMap" onclick="sendToMap()"       disabled>→ View on Map</button>
+          <button class="btn-green"    id="btnKml"      onclick="doConvert('kml')"  disabled>⬇ Download KML</button>
+          <button class="btn-green2"   id="btnKmz"      onclick="doConvert('kmz')"  disabled>⬇ Download KMZ</button>
+          <button class="send-map-btn" id="btnSendMap" onclick="sendToMap()"        disabled>→ View on Map</button>
         </div>
       </div>
     </div>
@@ -378,18 +475,190 @@
 // ══════════════════════════════════
 //  MAP INIT
 // ══════════════════════════════════
-const map = L.map('map').setView([20,0],2);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'©OpenStreetMap ©CartoDB',maxZoom:19}).addTo(map);
+const map = L.map('map',{zoomControl:false}).setView([20,0],2);
+
+// ── TILE / BASEMAP ──
+const TILE_STYLES={
+  dark:     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  light:    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  satellite:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo:     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+  street:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+};
+let currentTileLayer=L.tileLayer(TILE_STYLES.dark,{attribution:'©OpenStreetMap ©CartoDB',maxZoom:19}).addTo(map);
+function switchBasemap(style){
+  map.removeLayer(currentTileLayer);
+  currentTileLayer=L.tileLayer(TILE_STYLES[style]||TILE_STYLES.dark,{attribution:'©OpenStreetMap',maxZoom:19}).addTo(map);
+  currentTileLayer.bringToBack();
+}
+
+// ── NATIVE LABELS TOGGLE ──
+let labelsOn=true;
+function toggleLabels(){
+  labelsOn=!labelsOn;
+  const btn=document.getElementById('btnLabels');
+  btn.textContent=labelsOn?'🏷 Show':'🏷 Hide';
+  btn.classList.toggle('active',labelsOn);
+  document.body.classList.toggle('hide-labels', !labelsOn);
+}
+
+// ── FIND ME (USER LOCATION) ──
+function locateUser(){
+  setStatus('Locating you...','info');
+  map.locate({setView: true, maxZoom: 15});
+}
+map.on('locationfound', function(e) {
+  L.circleMarker(e.latlng, {radius: 8, color: '#00e5ff', fillColor: '#00e5ff', fillOpacity: 0.5})
+    .addTo(map).bindTooltip("You are here", {permanent: true, direction: 'right', className: 'map-label'}).openTooltip();
+  setStatus('✓ Location found','ok');
+});
+map.on('locationerror', function(e) {
+  setStatus('✕ Could not access location','err');
+});
+
+// ── RIGHT-CLICK CONTEXT MENU ──
+let _ctxLatLng=null;
+map.on('contextmenu',e=>{
+  _ctxLatLng=e.latlng;
+  const menu=document.getElementById('ctxMenu');
+  const mx=Math.min(e.originalEvent.clientX, window.innerWidth-200);
+  const my=Math.min(e.originalEvent.clientY, window.innerHeight-160);
+  menu.style.left=mx+'px'; menu.style.top=my+'px';
+  menu.classList.add('show');
+  e.originalEvent.preventDefault();
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('#ctxMenu')) hideCtxMenu(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideCtxMenu(); });
+function hideCtxMenu(){ document.getElementById('ctxMenu').classList.remove('show'); }
+function ctxPinHere(){
+  if(!_ctxLatLng) return;
+  document.getElementById('pinLat').value=_ctxLatLng.lat.toFixed(6);
+  document.getElementById('pinLng').value=_ctxLatLng.lng.toFixed(6);
+  hideCtxMenu();
+  addManualPin();
+}
+function ctxCopyCoords(){
+  if(_ctxLatLng) copyText(`${_ctxLatLng.lat.toFixed(6)}, ${_ctxLatLng.lng.toFixed(6)}`);
+  hideCtxMenu();
+}
+function ctxOpenStreetView(){
+  if(_ctxLatLng) window.open(`https://www.google.com/maps?q=${_ctxLatLng.lat},${_ctxLatLng.lng}`,'_blank');
+  hideCtxMenu();
+}
+function clearAllData() {
+  clearImported();
+  clearManualPins();
+  hideCtxMenu();
+  setStatus('✓ All map data cleared','ok');
+}
+function copyText(text){ navigator.clipboard.writeText(text).then(()=>setStatus('📋 Copied: '+text,'ok')); }
+
+// ── MEASURE DISTANCE ──
+let measureMode=false, measurePoints=[], measurePolyline=null, measureMarkers=[];
+function toggleMeasure(){
+  measureMode=!measureMode;
+  const btn=document.getElementById('btnMeasure');
+  if(measureMode){
+    btn.classList.add('active','red'); btn.textContent='📐 Stop';
+    map.getContainer().style.cursor='crosshair';
+    setStatus('📏 Click map to add points · click Stop to finish','');
+  } else {
+    btn.classList.remove('active','red'); btn.textContent='📐 Measure';
+    map.getContainer().style.cursor=''; clearMeasure(); setStatus('Ready','');
+  }
+}
+function clearMeasure(){
+  measureMarkers.forEach(m=>map.removeLayer(m)); measureMarkers=[];
+  if(measurePolyline){map.removeLayer(measurePolyline);measurePolyline=null;}
+  measurePoints=[];
+}
+
+// ── GEOCODE SEARCH (Nominatim) ──
+let searchTimer=null, searchMarker=null;
+document.getElementById('geocodeInput').addEventListener('input',function(){
+  clearTimeout(searchTimer);
+  const q=this.value.trim();
+  if(q.length<3){document.getElementById('searchResults').classList.remove('show');return;}
+  searchTimer=setTimeout(()=>geocodeSearch(q),450);
+});
+document.getElementById('geocodeInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){const q=document.getElementById('geocodeInput').value.trim();if(q)geocodeSearch(q);}
+  if(e.key==='Escape') document.getElementById('searchResults').classList.remove('show');
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('.search-wrap')) document.getElementById('searchResults').classList.remove('show'); });
+async function geocodeSearch(q){
+  q=q||document.getElementById('geocodeInput').value.trim();
+  if(!q) return;
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6`,{headers:{'Accept-Language':'en'}});
+    const data=await res.json();
+    const box=document.getElementById('searchResults');
+    if(!data.length){box.innerHTML='<div class="search-result-item"><span class="search-result-sub">No results</span></div>';box.classList.add('show');return;}
+    box.innerHTML=data.map(r=>`<div class="search-result-item" onclick="goToResult(${r.lat},${r.lon},${JSON.stringify(r.display_name)})">
+      <div class="search-result-name">${escHtml(r.display_name.split(',')[0])}</div>
+      <div class="search-result-sub">${escHtml(r.display_name.split(',').slice(1,3).join(',').trim())} · ${(+r.lat).toFixed(4)}, ${(+r.lon).toFixed(4)}</div>
+    </div>`).join('');
+    box.classList.add('show');
+  }catch(e){}
+}
+function goToResult(lat,lng,name){
+  document.getElementById('searchResults').classList.remove('show');
+  document.getElementById('geocodeInput').value='';
+  const ll=[parseFloat(lat),parseFloat(lng)];
+  if(searchMarker) map.removeLayer(searchMarker);
+  searchMarker=L.circleMarker(ll,{radius:14,color:'#ffc800',weight:3,fillColor:'#ffc800',fillOpacity:0.2}).addTo(map);
+  setTimeout(()=>{if(searchMarker){map.removeLayer(searchMarker);searchMarker=null;}},4000);
+  map.flyTo(ll,14,{duration:1.2});
+  // Pre-fill pin fields
+  document.getElementById('pinLat').value=ll[0].toFixed(6);
+  document.getElementById('pinLng').value=ll[1].toFixed(6);
+  document.getElementById('pinName').value=name.split(',')[0];
+  setStatus(`🔍 ${name.split(',')[0]}`,'ok');
+}
+
+// ── FULLSCREEN ──
+function toggleFullscreen(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+L.control.zoom({position:'bottomright'}).addTo(map);
+
+// ── SIDEBAR FILTER ──
+function filterTable(q){
+  q=(q||'').toLowerCase().trim();
+  document.querySelectorAll('#tbody tr').forEach(tr=>{
+    const name=(tr.querySelector('td:nth-child(2)')||{}).textContent||'';
+    tr.style.display=(q===''||name.toLowerCase().includes(q))?'':'none';
+  });
+}
 
 let importedRows=[], importedLayers=[], importedLayerIdx=[];
 let manualRows=[], manualLayers=[];
 let manualCounter=0;
 
+// ── MAP CLICK: fill pin fields OR add measure point ──
 map.on('click',e=>{
+  if(measureMode){
+    measurePoints.push(e.latlng);
+    measureMarkers.push(L.circleMarker(e.latlng,{radius:5,color:'#ffc800',fillColor:'#ffc800',fillOpacity:1,weight:2}).addTo(map));
+    if(measurePolyline) map.removeLayer(measurePolyline);
+    if(measurePoints.length>=2){
+      measurePolyline=L.polyline(measurePoints,{color:'#ffc800',weight:2,dashArray:'6,4',opacity:0.9}).addTo(map);
+      let totalM=0;
+      for(let i=1;i<measurePoints.length;i++) totalM+=measurePoints[i-1].distanceTo(measurePoints[i]);
+      const km=(totalM/1000).toFixed(3), mi=(totalM/1609.34).toFixed(3);
+      setStatus(`📏 ${totalM<1000?totalM.toFixed(0)+' m':km+' km'} · ${mi} mi · ${measurePoints.length} pts`,'');
+    }
+    return;
+  }
   document.getElementById('pinLat').value=e.latlng.lat.toFixed(6);
   document.getElementById('pinLng').value=e.latlng.lng.toFixed(6);
   document.getElementById('pinLat').focus();
 });
+map.on('mousemove',e=>{
+  document.getElementById('coordsDisplay').textContent=`${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+});
+map.on('mouseout',()=>{ document.getElementById('coordsDisplay').textContent='—'; });
 ['pinLat','pinLng','pinName'].forEach(id=>
   document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') addManualPin(); })
 );
@@ -617,7 +886,9 @@ function addPoint(name,type,lat,lng){
   const isPinType=(type==='Pin');
   const color=isPinType?'#a78bfa':'#00e5ff';
   const m=L.circleMarker([lat,lng],{radius:7,color,weight:2,fillColor:color,fillOpacity:0.85})
-    .bindPopup(mkImportPopup(name,type,lat,lng)).addTo(map);
+    .bindPopup(mkImportPopup(name,type,lat,lng))
+    .bindTooltip(name, {permanent: true, direction: 'right', offset: [5,0], className: `map-label ${isPinType?'pin-label':''}`})
+    .addTo(map);
   m.on('click',()=>hlImportRow(idx));
   importedLayers.push(m);
 }
@@ -625,7 +896,10 @@ function addLine(name,coords){
   const idx=importedRows.length;
   importedLayerIdx[idx]=importedLayers.length;
   importedRows.push({name,type:'LineString',lat:coords[0][0],lng:coords[0][1]});
-  const pl=L.polyline(coords,{color:'#ffc800',weight:2.5,opacity:0.9}).bindPopup(mkImportPopup(name,'LineString',coords[0][0],coords[0][1])).addTo(map);
+  const pl=L.polyline(coords,{color:'#ffc800',weight:2.5,opacity:0.9})
+    .bindPopup(mkImportPopup(name,'LineString',coords[0][0],coords[0][1]))
+    .bindTooltip(name, {permanent: true, direction: 'center', className: 'map-label'})
+    .addTo(map);
   pl.on('click',()=>hlImportRow(idx));
   importedLayers.push(pl);
 }
@@ -638,7 +912,10 @@ function addPolygon(name,coords){
   const pg=L.polygon(coords,{color:'#ff4d6d',weight:2,fillColor:'#ff4d6d',fillOpacity:0.12}).bindPopup(mkImportPopup(name,'Polygon',cLat,cLng)).addTo(map);
   pg.on('click',()=>hlImportRow(idx));
   importedLayers.push(pg);
-  const cd=L.circleMarker([cLat,cLng],{radius:6,color:'#ff4d6d',weight:2,fillColor:'#ff1a40',fillOpacity:0.95}).bindPopup(mkImportPopup(name,'Polygon',cLat,cLng)).addTo(map);
+  const cd=L.circleMarker([cLat,cLng],{radius:6,color:'#ff4d6d',weight:2,fillColor:'#ff1a40',fillOpacity:0.95})
+    .bindPopup(mkImportPopup(name,'Polygon',cLat,cLng))
+    .bindTooltip(name, {permanent: true, direction: 'right', offset: [5,0], className: 'map-label'})
+    .addTo(map);
   cd.on('click',()=>hlImportRow(idx));
   importedLayers.push(cd);
 }
@@ -660,10 +937,6 @@ function clearImported(){
   setImportStatus('','');
 }
 function removeImportedRow(idx){
-  // Each importedRow may correspond to 1 or 2 layers (polygon adds centroid marker too)
-  // We track layer index alongside row index via a parallel importedLayerMap
-  // Simple approach: rebuild layers by removing the layer at same index
-  // For polygons (2 layers per row) we use importedLayerIdx[]
   const layerIdx = importedLayerIdx[idx];
   if(layerIdx !== undefined){
     const count = importedLayerIdx[idx+1] !== undefined
@@ -671,7 +944,6 @@ function removeImportedRow(idx){
       : importedLayers.length - layerIdx;
     for(let i=0;i<count;i++) map.removeLayer(importedLayers[layerIdx+i]);
     importedLayers.splice(layerIdx, count);
-    // Shift all subsequent indices
     for(let k=idx+1;k<importedLayerIdx.length;k++){
       if(importedLayerIdx[k]!==undefined) importedLayerIdx[k]-=count;
     }
@@ -706,7 +978,21 @@ function addManualPin(){
     <div style="position:absolute;inset:3px;border-radius:50%;background:#a78bfa;border:2px solid #fff;box-shadow:0 0 8px rgba(167,139,250,0.8)"></div>
   </div>`;
   const icon=L.divIcon({className:'',html:iconHtml,iconSize:[20,20],iconAnchor:[10,10]});
-  const m=L.marker([lat,lng],{icon}).bindPopup(mkPinPopup(name,lat,lng)).addTo(map);
+  
+  // DRAGGABLE MARKER
+  const m=L.marker([lat,lng],{icon, draggable:true})
+    .bindPopup(mkPinPopup(name,lat,lng))
+    .bindTooltip(name, {permanent: true, direction: 'right', offset: [5,0], className: 'map-label pin-label'})
+    .addTo(map);
+
+  m.on('dragend', function(e) {
+      const newPos = m.getLatLng();
+      manualRows[idx].lat = newPos.lat;
+      manualRows[idx].lng = newPos.lng;
+      m.setPopupContent(mkPinPopup(manualRows[idx].name, newPos.lat, newPos.lng));
+      renderTable();
+  });
+
   m.on('click',()=>hlRow('manual-'+idx));
   manualLayers.push({marker:m,idx});
   map.flyTo([lat,lng],Math.max(map.getZoom(),13),{duration:0.8});
@@ -765,7 +1051,8 @@ function renderTable(){
   importedRows.forEach((r,i)=>{
     const tl=r.type==='LineString'?'Line':r.type;
     const tr=document.createElement('tr'); tr.className='fr'; tr.id='row-import-'+i;
-    tr.innerHTML=`<td>${i+1}</td><td style="max-width:80px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}">${esc(r.name)}</td>
+    tr.innerHTML=`<td>${i+1}</td>
+      <td class="name-cell" style="max-width:80px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}" ondblclick="event.stopPropagation();startRename(this,'import',${i})">${esc(r.name)}</td>
       <td><span class="pill p-${tl}">${tl}</span></td>
       <td class="coord">${r.lat.toFixed(5)}</td><td class="coord">${r.lng.toFixed(5)}</td>
       <td><button class="del-btn" onclick="event.stopPropagation();removeImportedRow(${i})">✕</button></td>`;
@@ -774,12 +1061,14 @@ function renderTable(){
   manualRows.forEach((r,i)=>{
     const gi=importedRows.length+i;
     const tr=document.createElement('tr'); tr.className='fr mr'; tr.id='row-manual-'+i;
-    tr.innerHTML=`<td>${gi+1}</td><td style="max-width:80px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}">${esc(r.name)}</td>
+    tr.innerHTML=`<td>${gi+1}</td>
+      <td class="name-cell" style="max-width:80px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.name)}" ondblclick="event.stopPropagation();startRename(this,'manual',${i})">${esc(r.name)}</td>
       <td><span class="pill p-Pin">📌</span></td>
       <td class="coordm">${r.lat.toFixed(5)}</td><td class="coordm">${r.lng.toFixed(5)}</td>
       <td><button class="del-btn" onclick="event.stopPropagation();removeManualPin(${i})">✕</button></td>`;
     tr.addEventListener('click',()=>flyTo('manual',i)); tbody.appendChild(tr);
   });
+  filterTable(document.getElementById('sidebarFilter').value||'');
 }
 function hlRow(key){
   document.querySelectorAll('.fr').forEach(r=>r.classList.remove('active'));
@@ -962,11 +1251,38 @@ function parsePts(raw){
 function setStatus(msg,cls){ const el=document.getElementById('status'); el.textContent=msg; el.className=cls||''; }
 function setCvStatus(msg,cls){ const el=document.getElementById('cv-status'); el.textContent=msg; el.className=cls||''; }
 function setImportStatus(msg,cls){ const el=document.getElementById('importStatus'); el.textContent=msg; el.className=cls||''; }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ return String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"'); }
+
+// ── INLINE RENAME (double-click name cell) ──
+function startRename(el,src,idx){
+  const orig=el.textContent;
+  el.contentEditable='true'; el.style.outline='1px solid var(--accent4)'; el.style.borderRadius='3px';
+  el.focus();
+  const sel=window.getSelection(), range=document.createRange();
+  range.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(range);
+  function commit(){
+    el.contentEditable='false'; el.style.outline=''; el.style.borderRadius='';
+    const newName=el.textContent.trim()||orig;
+    el.textContent=newName;
+    if(src==='manual' && manualRows[idx]) {
+        manualRows[idx].name=newName;
+        const e=manualLayers.find(m=>m.idx===idx);
+        if(e) e.marker.setTooltipContent(newName).setPopupContent(mkPinPopup(newName, manualRows[idx].lat, manualRows[idx].lng));
+    }
+    else if(src==='import' && importedRows[idx]) {
+        importedRows[idx].name=newName;
+        // Tooltip update needs custom tracking if we want to live-update layer names, but a re-import is safer for lines/polygons
+    }
+  }
+  el.addEventListener('blur',commit,{once:true});
+  el.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();el.blur();}
+    if(e.key==='Escape'){el.textContent=orig;el.blur();}
+  });
+}
 
 // ══════════════════════════════════
 //  GITHUB GIST STORAGE
-//  Saves ALL locations: imported + manual pins
 // ══════════════════════════════════
 const GIST_FILENAME='locations-portal-data.json';
 let _pendingGistData=null;
@@ -991,12 +1307,11 @@ async function saveToGist(){
   setGistStatus('Saving…','info');
   document.getElementById('btnGistSave').disabled=true;
 
-  // Save everything: imported features + manual pins, tagged by source
   const payload=JSON.stringify({
     saved: new Date().toISOString(),
     version: 2,
-    imported: importedRows,   // Points, Lines, Polygons from files — stored as point coords
-    pins: manualRows          // Hand-dropped pins
+    imported: importedRows,
+    pins: manualRows
   }, null, 2);
 
   try{
@@ -1023,12 +1338,10 @@ async function autoFetchGist(token,gistId){
     const res=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{Authorization:`token ${token}`}});
     if(!res.ok){ setGistStatus('Ready — could not fetch Gist',''); return; }
     const data=await res.json();
-    // Support both old filename (pins only) and new filename
     const file=data.files&&(data.files[GIST_FILENAME]||data.files['locations-portal-pins.json']);
     if(!file||!file.content){ setGistStatus('Ready — no saved locations in Gist',''); return; }
     const parsed=JSON.parse(file.content);
-
-    // Support old format (just .pins) and new format (.imported + .pins)
+    
     const importedCount=(parsed.imported||[]).length;
     const pinsCount=(parsed.pins||[]).length;
     const total=importedCount+pinsCount;
@@ -1049,7 +1362,6 @@ function confirmReload(){
   const parsed=_pendingGistData;
   const bounds=[];
 
-  // Restore imported locations (Points, Pins, Lines, Polygons stored as point coords)
   (parsed.imported||[]).forEach(r=>{
     const lat=parseFloat(r.lat), lng=parseFloat(r.lng);
     if(isNaN(lat)||isNaN(lng)) return;
@@ -1060,7 +1372,6 @@ function confirmReload(){
     document.getElementById('clearImportBtn').style.display='inline-block';
   }
 
-  // Restore manual pins with their animated marker style
   (parsed.pins||[]).forEach(r=>{
     const lat=parseFloat(r.lat), lng=parseFloat(r.lng);
     if(isNaN(lat)||isNaN(lng)) return;
@@ -1072,7 +1383,19 @@ function confirmReload(){
       <div style="position:absolute;inset:3px;border-radius:50%;background:#a78bfa;border:2px solid #fff;box-shadow:0 0 8px rgba(167,139,250,0.8)"></div>
     </div>`;
     const icon=L.divIcon({className:'',html:iconHtml,iconSize:[20,20],iconAnchor:[10,10]});
-    const m=L.marker([lat,lng],{icon}).bindPopup(mkPinPopup(name,lat,lng)).addTo(map);
+    const m=L.marker([lat,lng],{icon, draggable:true})
+      .bindPopup(mkPinPopup(name,lat,lng))
+      .bindTooltip(name, {permanent: true, direction: 'right', offset: [5,0], className: 'map-label pin-label'})
+      .addTo(map);
+
+    m.on('dragend', function(e) {
+      const newPos = m.getLatLng();
+      manualRows[idx].lat = newPos.lat;
+      manualRows[idx].lng = newPos.lng;
+      m.setPopupContent(mkPinPopup(manualRows[idx].name, newPos.lat, newPos.lng));
+      renderTable();
+    });
+
     m.on('click',()=>hlRow('manual-'+idx));
     manualLayers.push({marker:m,idx});
     bounds.push([lat,lng]);
