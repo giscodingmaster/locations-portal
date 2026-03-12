@@ -392,9 +392,16 @@
   <div class="sidebar">
     <div class="pin-panel">
       <div class="panel-title purple">📌 Drop a pin</div>
+      <div style="margin-bottom:0.45rem;">
+        <select id="pinCoordSys" style="width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Space Mono',monospace;font-size:0.62rem;padding:0.35rem 0.55rem;outline:none;cursor:pointer;" onchange="updatePinPlaceholders()">
+          <option value="latlng">WGS84 (Lat/Lng)</option>
+          <option value="utm35">WGS84 / UTM zone 35N</option>
+          <option value="utm36" selected>WGS84 / UTM zone 36N</option>
+        </select>
+      </div>
       <div class="pin-inputs">
-        <input type="number" id="pinLat" placeholder="Latitude"  step="any" min="-90"  max="90">
-        <input type="number" id="pinLng" placeholder="Longitude" step="any" min="-180" max="180">
+        <input type="number" id="pinLat" placeholder="Y (Northing)" step="any">
+        <input type="number" id="pinLng" placeholder="X (Easting)" step="any">
       </div>
       <div class="pin-row2">
         <input type="text" id="pinName" placeholder="Label (optional)">
@@ -448,8 +455,16 @@
       <div class="cv-card-title">② Map your columns</div>
       <div class="col-mapper show" id="colMapper">
         <div class="mapper-grid">
-          <div class="mapper-field"><label>Latitude column <span style="color:var(--accent2)">*</span></label><select id="colLat"></select></div>
-          <div class="mapper-field"><label>Longitude column <span style="color:var(--accent2)">*</span></label><select id="colLng"></select></div>
+          <div class="mapper-field">
+            <label>Coord System</label>
+            <select id="cvCoordSys">
+              <option value="latlng">WGS84 (Lat/Lng)</option>
+              <option value="utm35">WGS84 / UTM zone 35N</option>
+              <option value="utm36" selected>WGS84 / UTM zone 36N</option>
+            </select>
+          </div>
+          <div class="mapper-field"><label>Latitude / Y column <span style="color:var(--accent2)">*</span></label><select id="colLat"></select></div>
+          <div class="mapper-field"><label>Longitude / X column <span style="color:var(--accent2)">*</span></label><select id="colLng"></select></div>
           <div class="mapper-field"><label>Name / Label column</label><select id="colName"></select></div>
           <div class="mapper-field"><label>Description column</label><select id="colDesc"></select></div>
         </div>
@@ -471,11 +486,26 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.min.js"></script>
+
 <script>
 // ══════════════════════════════════
-//  MAP INIT
+//  MAP INIT & PROJECTIONS
 // ══════════════════════════════════
-const map = L.map('map',{zoomControl:false}).setView([20,0],2);
+proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
+proj4.defs("EPSG:32635", "+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs");
+proj4.defs("EPSG:32636", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs");
+
+// Set initial view closer to working region
+const map = L.map('map',{zoomControl:false}).setView([30.5, 31.0], 8);
+
+function updatePinPlaceholders() {
+  const sys = document.getElementById('pinCoordSys').value;
+  document.getElementById('pinLat').placeholder = sys === 'latlng' ? 'Latitude' : 'Y (Northing)';
+  document.getElementById('pinLng').placeholder = sys === 'latlng' ? 'Longitude' : 'X (Easting)';
+  document.getElementById('pinLat').value = '';
+  document.getElementById('pinLng').value = '';
+}
 
 // ── TILE / BASEMAP ──
 const TILE_STYLES={
@@ -532,8 +562,21 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideCtxMenu(); });
 function hideCtxMenu(){ document.getElementById('ctxMenu').classList.remove('show'); }
 function ctxPinHere(){
   if(!_ctxLatLng) return;
-  document.getElementById('pinLat').value=_ctxLatLng.lat.toFixed(6);
-  document.getElementById('pinLng').value=_ctxLatLng.lng.toFixed(6);
+  const sys = document.getElementById('pinCoordSys').value;
+  
+  if (sys === 'utm35') {
+      const coords = proj4("EPSG:4326", "EPSG:32635", [_ctxLatLng.lng, _ctxLatLng.lat]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); 
+      document.getElementById('pinLat').value = coords[1].toFixed(3); 
+  } else if (sys === 'utm36') {
+      const coords = proj4("EPSG:4326", "EPSG:32636", [_ctxLatLng.lng, _ctxLatLng.lat]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); 
+      document.getElementById('pinLat').value = coords[1].toFixed(3); 
+  } else {
+      document.getElementById('pinLat').value=_ctxLatLng.lat.toFixed(6);
+      document.getElementById('pinLng').value=_ctxLatLng.lng.toFixed(6);
+  }
+
   hideCtxMenu();
   addManualPin();
 }
@@ -609,12 +652,26 @@ function goToResult(lat,lng,name){
   searchMarker=L.circleMarker(ll,{radius:14,color:'#ffc800',weight:3,fillColor:'#ffc800',fillOpacity:0.2}).addTo(map);
   setTimeout(()=>{if(searchMarker){map.removeLayer(searchMarker);searchMarker=null;}},4000);
   map.flyTo(ll,14,{duration:1.2});
-  // Pre-fill pin fields
-  document.getElementById('pinLat').value=ll[0].toFixed(6);
-  document.getElementById('pinLng').value=ll[1].toFixed(6);
+  
+  // Pre-fill pin fields handling projection
+  const sys = document.getElementById('pinCoordSys').value;
+  if (sys === 'utm35') {
+      const coords = proj4("EPSG:4326", "EPSG:32635", [ll[1], ll[0]]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); 
+      document.getElementById('pinLat').value = coords[1].toFixed(3); 
+  } else if (sys === 'utm36') {
+      const coords = proj4("EPSG:4326", "EPSG:32636", [ll[1], ll[0]]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); 
+      document.getElementById('pinLat').value = coords[1].toFixed(3); 
+  } else {
+      document.getElementById('pinLat').value=ll[0].toFixed(6);
+      document.getElementById('pinLng').value=ll[1].toFixed(6);
+  }
+  
   document.getElementById('pinName').value=name.split(',')[0];
   setStatus(`🔍 ${name.split(',')[0]}`,'ok');
 }
+function escHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── FULLSCREEN ──
 function toggleFullscreen(){
@@ -651,8 +708,21 @@ map.on('click',e=>{
     }
     return;
   }
-  document.getElementById('pinLat').value=e.latlng.lat.toFixed(6);
-  document.getElementById('pinLng').value=e.latlng.lng.toFixed(6);
+  
+  // Back-project coordinates based on selected system
+  const sys = document.getElementById('pinCoordSys').value;
+  if (sys === 'utm35') {
+      const coords = proj4("EPSG:4326", "EPSG:32635", [e.latlng.lng, e.latlng.lat]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); // X Easting
+      document.getElementById('pinLat').value = coords[1].toFixed(3); // Y Northing
+  } else if (sys === 'utm36') {
+      const coords = proj4("EPSG:4326", "EPSG:32636", [e.latlng.lng, e.latlng.lat]);
+      document.getElementById('pinLng').value = coords[0].toFixed(3); 
+      document.getElementById('pinLat').value = coords[1].toFixed(3); 
+  } else {
+      document.getElementById('pinLat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('pinLng').value = e.latlng.lng.toFixed(6);
+  }
   document.getElementById('pinLat').focus();
 });
 map.on('mousemove',e=>{
@@ -791,7 +861,6 @@ async function loadJSON(file){
       if(k) parsed=parsed[k]; else throw new Error('Must be an array or contain an array field');
     }
     if(!parsed.length) throw new Error('Empty array');
-    // Auto-detect portal own format
     const first=parsed[0];
     if((first.lat||first.latitude)!==undefined && (first.lng||first.longitude)!==undefined){
       const bounds=[];
@@ -801,7 +870,6 @@ async function loadJSON(file){
       });
       finishImport(bounds,'JSON'); return;
     }
-    // Show mapper
     _jRows=parsed;
     const headers=Object.keys(first);
     const none='<option value="">— none —</option>';
@@ -966,11 +1034,35 @@ function hlImportRow(idx){
 //  MANUAL PINS
 // ══════════════════════════════════
 function addManualPin(){
-  const lat=parseFloat(document.getElementById('pinLat').value);
-  const lng=parseFloat(document.getElementById('pinLng').value);
-  const name=document.getElementById('pinName').value.trim()||('Pin '+(++manualCounter));
-  if(isNaN(lat)||isNaN(lng)){ flashPinInputs(); return; }
-  if(lat<-90||lat>90||lng<-180||lng>180){ setStatus('Out of range: Lat ±90, Lng ±180','error'); flashPinInputs(); return; }
+  const sys = document.getElementById('pinCoordSys').value;
+  let inputY = parseFloat(document.getElementById('pinLat').value); // Lat or Northing
+  let inputX = parseFloat(document.getElementById('pinLng').value); // Lng or Easting
+  const name = document.getElementById('pinName').value.trim()||('Pin '+(++manualCounter));
+
+  if(isNaN(inputY)||isNaN(inputX)){ flashPinInputs(); return; }
+
+  let lat, lng;
+
+  // Convert UTM to Lat/Lng
+  if (sys === 'utm35') {
+      const wgs = proj4("EPSG:32635", "EPSG:4326", [inputX, inputY]);
+      lng = wgs[0];
+      lat = wgs[1];
+  } else if (sys === 'utm36') {
+      const wgs = proj4("EPSG:32636", "EPSG:4326", [inputX, inputY]);
+      lng = wgs[0];
+      lat = wgs[1];
+  } else {
+      lat = inputY;
+      lng = inputX;
+  }
+
+  if(lat<-90||lat>90||lng<-180||lng>180){ 
+      setStatus('Converted coordinates out of range','error'); 
+      flashPinInputs(); 
+      return; 
+  }
+
   const idx=manualRows.length;
   manualRows.push({name,type:'Pin',lat,lng});
   const iconHtml=`<div style="position:relative;width:20px;height:20px">
@@ -997,6 +1089,7 @@ function addManualPin(){
   manualLayers.push({marker:m,idx});
   map.flyTo([lat,lng],Math.max(map.getZoom(),13),{duration:0.8});
   m.openPopup();
+  
   document.getElementById('pinLat').value='';
   document.getElementById('pinLng').value='';
   document.getElementById('pinName').value='';
@@ -1006,6 +1099,7 @@ function addManualPin(){
   document.getElementById('btnPinKmz').disabled=false;
   document.getElementById('btnPinKml').disabled=false;
 }
+
 function removeManualPin(idx){
   const e=manualLayers.find(e=>e.idx===idx);
   if(e){ map.removeLayer(e.marker); manualLayers=manualLayers.filter(e=>e.idx!==idx); }
@@ -1124,8 +1218,8 @@ function buildMapper(){
   const opts=xlHeaders.map(h=>`<option value="${esc(h)}">${esc(h)}</option>`).join('');
   const af=(...keys)=>xlHeaders.find(h=>keys.some(k=>h.toLowerCase().includes(k)))||'';
   ['colLat','colLng','colName','colDesc'].forEach(id=>{ document.getElementById(id).innerHTML=none+opts; });
-  document.getElementById('colLat').value=af('lat');
-  document.getElementById('colLng').value=af('lon','lng','long');
+  document.getElementById('colLat').value=af('lat', 'northing', 'y');
+  document.getElementById('colLng').value=af('lon','lng','long', 'easting', 'x');
   document.getElementById('colName').value=af('name','label','title','placemark');
   document.getElementById('colDesc').value=af('desc','note','comment','info','remark');
   ['colLat','colLng','colName','colDesc'].forEach(id=>document.getElementById(id).addEventListener('change',updatePreview));
@@ -1144,13 +1238,32 @@ function updatePreview(){
   const bodyRows=xlData.slice(0,5).map(row=>'<tr>'+cols.map(h=>`<td class="${hlCols.includes(h)?'hl':''}">${esc(String(row[h]??''))}</td>`).join('')+'</tr>').join('');
   document.getElementById('previewTable').innerHTML=`<thead><tr>${headRow}</tr></thead><tbody>${bodyRows}</tbody>`;
 }
+
+// Projection helper for bulk tools
+function convertRowCoord(inputX, inputY) {
+  const sys = document.getElementById('cvCoordSys').value;
+  if (sys === 'utm35') {
+      const wgs = proj4("EPSG:32635", "EPSG:4326", [inputX, inputY]);
+      return { lng: wgs[0], lat: wgs[1] };
+  } else if (sys === 'utm36') {
+      const wgs = proj4("EPSG:32636", "EPSG:4326", [inputX, inputY]);
+      return { lng: wgs[0], lat: wgs[1] };
+  }
+  return { lng: inputX, lat: inputY };
+}
+
 function buildKML(rows){
   const latC=document.getElementById('colLat').value, lngC=document.getElementById('colLng').value;
   const nameC=document.getElementById('colName').value, descC=document.getElementById('colDesc').value;
   let pm='',count=0;
+  
   rows.forEach((row,i)=>{
-    const lat=parseFloat(row[latC]), lng=parseFloat(row[lngC]);
-    if(isNaN(lat)||isNaN(lng)) return;
+    const inputY=parseFloat(row[latC]), inputX=parseFloat(row[lngC]);
+    if(isNaN(inputY)||isNaN(inputX)) return;
+    
+    const { lat, lng } = convertRowCoord(inputX, inputY);
+    if(lat<-90||lat>90||lng<-180||lng>180) return;
+
     const name=nameC?esc(String(row[nameC]||'')):'Point '+(i+1);
     const desc=descC?`<description>${esc(String(row[descC]||''))}</description>`:'';
     pm+=`  <Placemark>\n    <n>${name}</n>\n    ${desc}\n    <Point><coordinates>${lng},${lat},0</coordinates></Point>\n  </Placemark>\n`;
@@ -1159,9 +1272,10 @@ function buildKML(rows){
   if(!count) return null;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<n>Export</n>\n${pm}</Document>\n</kml>`;
 }
+
 async function doConvert(fmt){
   const kmlStr=buildKML(xlData);
-  if(!kmlStr){ setCvStatus('No valid lat/lng rows found.','error'); return; }
+  if(!kmlStr){ setCvStatus('No valid coordinates found (check system and column mapping).','error'); return; }
   const latC=document.getElementById('colLat').value, lngC=document.getElementById('colLng').value;
   const vc=xlData.filter(r=>!isNaN(parseFloat(r[latC]))&&!isNaN(parseFloat(r[lngC]))).length;
   if(fmt==='kml'){ dl('export.kml',kmlStr,'application/vnd.google-earth.kml+xml'); setCvStatus(`✓ KML · ${vc} points`,'ok'); }
@@ -1173,15 +1287,22 @@ async function doConvert(fmt){
     setCvStatus(`✓ KMZ · ${vc} points`,'ok');
   }
 }
+
 function sendToMap(){
   const latC=document.getElementById('colLat').value, lngC=document.getElementById('colLng').value, nameC=document.getElementById('colName').value;
   let added=0;
+  
   xlData.forEach((row,i)=>{
-    const lat=parseFloat(row[latC]), lng=parseFloat(row[lngC]);
-    if(isNaN(lat)||isNaN(lng)) return;
+    const inputY=parseFloat(row[latC]), inputX=parseFloat(row[lngC]);
+    if(isNaN(inputY)||isNaN(inputX)) return;
+    
+    const { lat, lng } = convertRowCoord(inputX, inputY);
+    if(lat<-90||lat>90||lng<-180||lng>180) return;
+
     addPoint(nameC?(String(row[nameC]||'').trim()||'Row '+(i+1)):'Row '+(i+1),'Pin',lat,lng); added++;
   });
-  if(!added){ setCvStatus('No valid rows to send.','error'); return; }
+  
+  if(!added){ setCvStatus('No valid rows to send (check system and column mapping).','error'); return; }
   const pts=importedRows.map(r=>[r.lat,r.lng]);
   map.fitBounds(L.latLngBounds(pts),{padding:[50,50]});
   renderTable(); updateMapBtns();
@@ -1271,7 +1392,6 @@ function startRename(el,src,idx){
     }
     else if(src==='import' && importedRows[idx]) {
         importedRows[idx].name=newName;
-        // Tooltip update needs custom tracking if we want to live-update layer names, but a re-import is safer for lines/polygons
     }
   }
   el.addEventListener('blur',commit,{once:true});
